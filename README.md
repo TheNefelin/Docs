@@ -7,3 +7,5 @@
 * [JavaTech](https://github.com/TheNefelin/Docs/blob/main/JavaTech.md)
 * [Linode](https://github.com/TheNefelin/Docs/blob/main/Linode.md)
 * [Python](https://github.com/TheNefelin/Docs/blob/main/Python.md)
+* [React](https://github.com/TheNefelin/Docs/blob/main/React.md)
+* [Windows](https://github.com/TheNefelin/Docs/blob/main/Windows.md)
