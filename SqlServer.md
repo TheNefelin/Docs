@@ -82,11 +82,11 @@ CREATE TABLE Nen (
 GO
 
 CREATE TABLE CazadorNen (
-	Id_Cazador INT NOT NULL,
-	Id_Nen INT NOT NULL,
-	PRIMARY KEY (Id_Cazador, Id_Nen),
-	FOREIGN KEY (Id_Cazador) REFERENCES Cazadores(Id),
-	FOREIGN KEY (Id_Nen) REFERENCES Nen(Id),
+    Id_Cazador INT NOT NULL,
+    Id_Nen INT NOT NULL,
+    PRIMARY KEY (Id_Cazador, Id_Nen),
+    FOREIGN KEY (Id_Cazador) REFERENCES Cazadores(Id),
+    FOREIGN KEY (Id_Nen) REFERENCES Nen(Id),
 )
 GO
 ```
@@ -101,25 +101,25 @@ CREATE PROCEDURE Auth_Register
     @AuthSalt VARCHAR(256)
 AS
 BEGIN
-  SET NOCOUNT ON;
+    SET NOCOUNT ON;
 
-  IF EXISTS (SELECT Id FROM Auth_Usuario WHERE Email = @Email)
-    BEGIN
-      SELECT 400 AS StatusCode, 0 AS Id, 'El Usuario ya Existe' AS Msge
-      RETURN
-    END
+    IF EXISTS (SELECT Id FROM Auth_Usuario WHERE Email = @Email)
+      BEGIN
+        SELECT 400 AS StatusCode, 0 AS Id, 'El Usuario ya Existe' AS Msge
+        RETURN
+      END
 
-  BEGIN TRY
-    INSERT INTO Auth_Usuario
-      (Id, Email, Usuario, AuthHash, AuthSalt, Id_Perfil)
-    VALUES
-      (@Id, @Email, @Usuario, @AuthHash, @AuthSalt, 2)
+    BEGIN TRY
+        INSERT INTO Auth_Usuario
+          (Id, Email, Usuario, AuthHash, AuthSalt, Id_Perfil)
+        VALUES
+          (@Id, @Email, @Usuario, @AuthHash, @AuthSalt, 2)
 
-    SELECT 201 AS StatusCode, 0 AS Id, 'Usuario Registrado Correctamente' AS Msge 
-  END TRY
-  BEGIN CATCH
-    SELECT 500 AS StatusCode, 0 AS Id, 'Error al Guardado los Datos (Auth_Register)' AS Msge 
-  END CATCH
+        SELECT 201 AS StatusCode, 0 AS Id, 'Usuario Registrado Correctamente' AS Msge 
+    END TRY
+    BEGIN CATCH
+        SELECT 500 AS StatusCode, 0 AS Id, 'Error al Guardado los Datos (Auth_Register)' AS Msge 
+    END CATCH
 END
 GO
 ```
@@ -127,29 +127,29 @@ GO
 ## Crear Procedimiento Almacenado con Transaccion
 ```
 CREATE PROCEDURE Cazadores_Insert
-	@Nombre AS VARCHAR(50),
-	@Edad AS INT
+    @Nombre AS VARCHAR(50),
+    @Edad AS INT
 AS
 BEGIN
-	SET NOCOUNT ON
+    SET NOCOUNT ON
 
-	BEGIN TRANSACTION
+    BEGIN TRANSACTION
 
-	BEGIN TRY
-		INSERT INTO Cazadores
-			(Nombre, Edad)
-		VALUES
-			(@Nombre, @Edad)		
+    BEGIN TRY
+        INSERT INTO Cazadores
+          (Nombre, Edad)
+        VALUES
+            (@Nombre, @Edad)		
 				
-		COMMIT TRANSACTION
+        COMMIT TRANSACTION
 
-		SELECT 201 AS StatusCode, 'Datos Guardados Correctamente' AS Msge, SCOPE_IDENTITY() AS Id
-	END TRY
-	BEGIN CATCH
-		ROLLBACK TRANSACTION
+        SELECT 201 AS StatusCode, 'Datos Guardados Correctamente' AS Msge, SCOPE_IDENTITY() AS Id
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION
 
-		SELECT ERROR_STATE() AS StatusCode, ERROR_MESSAGE() AS Msge, 0 AS Id
-	END CATCH
+        SELECT ERROR_STATE() AS StatusCode, ERROR_MESSAGE() AS Msge, 0 AS Id
+    END CATCH
 END
 GO
 ```
@@ -206,16 +206,16 @@ END;
 GO
 ```
 
-## Insertar Data Desacivnado y Activando el Identity
+## Insertar Data Desactivado y Activado el Identity
 ```
 SET IDENTITY_INSERT Auth_Perfil ON
 GO
 
 INSERT INTO Auth_Perfil
-  (Id, Nombre)
+    (Id, Nombre)
 VALUES
-  (1, 'Admin'),
-  (2, 'Usuario')
+    (1, 'Admin'),
+    (2, 'Usuario')
 
 SET IDENTITY_INSERT Auth_Perfil OFF
 GO
