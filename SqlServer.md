@@ -16,6 +16,33 @@
 -- --------------------------------------------------------------
 ```
 
+## Crear Usuario
+```
+SELECT 
+	NAME AS LoginName, 
+	TYPE_DESC AS AccountType, 
+	create_date, 
+	modify_date,
+	TYPE
+FROM sys.server_principals
+WHERE TYPE IN ('S', 'U', 'G');
+GO
+```
+```
+CREATE LOGIN testing WITH PASSWORD = 'testing', CHECK_POLICY = OFF;
+GO
+CREATE DATABASE db_testing
+GO
+USE db_testing
+GO
+CREATE USER testing FOR LOGIN testing;
+GO
+EXEC sp_addrolemember 'db_owner', 'testing';
+```
+```
+USE db_testing
+```
+
 ## Crear un registro y recibir datos al mismo tiempo
 ```
 INSERT INTO GG_Users 
