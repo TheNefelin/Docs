@@ -28,6 +28,7 @@ docker container start <CONTAINER ID>
 
 ### SQL Server
 * [download image](https://hub.docker.com/r/microsoft/mssql-server)
+* [download client](https://learn.microsoft.com/en-us/ssms/download-sql-server-management-studio-ssms)
 ```
 docker pull mcr.microsoft.com/mssql/server 
 
@@ -59,6 +60,7 @@ EXEC sp_addrolemember 'db_owner', 'testing';
 
 ### MySQL
 * [download image](https://hub.docker.com/_/mysql)
+* [download client](https://www.mysql.com/products/workbench/)
 ```
 docker pull mysql
 
@@ -76,7 +78,8 @@ GRANT REFERENCES ON db_testing.* TO 'testing'@'%';
 ```
 
 ### PostgreSQL
-[download image](https://hub.docker.com/_/postgres)
+* [download image](https://hub.docker.com/_/postgres)
+* [download client](https://www.pgadmin.org/download/pgadmin-4-windows/)
 ```
 docker pull postgres
 
@@ -87,6 +90,21 @@ docker run --name PostgreSQL -e POSTGRES_PASSWORD=mysecretpassword -p 5432:5432 
 CREATE DATABASE db_testing;
 CREATE USER testing WITH PASSWORD 'testing';
 GRANT ALL PRIVILEGES ON DATABASE db_testing TO testing;
+```
+
+### Oracle DB Express
+* [download image](https://container-registry.oracle.com/ords/f?p=113:4:105333891478907:::4:P4_REPOSITORY,AI_REPOSITORY,AI_REPOSITORY_NAME,P4_REPOSITORY_NAME,P4_EULA_ID,P4_BUSINESS_AREA_ID:803,803,Oracle%20Database%20Express%20Edition,Oracle%20Database%20Express%20Edition,1,0&cs=3nyqRm68Ce-NlRqxB5kV6wtDNVUeH2VcOEFM6hC2yc5gE1tTvG0KYtsuSNrn-BJUHFVeGHKKwJDNY4V7-R-EhBw)
+* [download client](https://www.oracle.com/cl/database/sqldeveloper/)
+```
+docker pull container-registry.oracle.com/database/express:latest
+
+docker run --name OracleDB -p 1521:1521 -e ORACLE_PWD=mysecretpassword -d container-registry.oracle.com/database/express:latest
+```
+* New SQL User
+```
+ALTER SESSION SET "_ORACLE_SCRIPT"=TRUE;
+CREATE USER testing IDENTIFIED BY testing;
+GRANT ALL PRIVILEGES TO testing;
 ```
 
 ## Docker File
