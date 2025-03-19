@@ -246,4 +246,64 @@ INSERT INTO producto VALUES(11, 'Impresora HP Laserjet Pro M26nw', 180, 3);
 
 ## Select Into
 ```
+DECLARE
+    v_total NUMBER(8);
+    v_suma_productos NUMBER(8,2);
+    
+BEGIN
+    
+    SELECT 
+        COUNT(*), SUM(precio) 
+    INTO 
+        v_total,
+        v_suma_productos
+    FROM producto;
+    
+    DBMS_OUTPUT.PUT_LINE('Total de Productos: ' || v_total);
+    DBMS_OUTPUT.PUT_LINE('Suma de Precios: ' || v_suma_productos);
+    
+END;
+```
+
+## Atributo Type
+```
+DECLARE
+    v_codigo producto.codigo%type := &codigo; 
+    v_nombre producto.nombre%type;
+    
+BEGIN
+    
+    SELECT nombre INTO v_nombre
+    FROM producto
+    WHERE codigo = v_codigo;
+    
+    DBMS_OUTPUT.PUT_LINE('Nombre del Producto con codigo ' || v_codigo || ': ' || v_nombre);
+    
+END;
+```
+
+## Atributo RowType
+```
+DECLARE
+    v_codigo producto.codigo%type := &codigo;
+    v_producto producto%rowtype;
+    
+BEGIN
+    
+    SELECT * INTO v_producto
+    FROM producto
+    WHERE codigo = v_codigo;
+    
+    DBMS_OUTPUT.PUT_LINE('Informacion del producto con codigo: ' || v_codigo);
+    DBMS_OUTPUT.PUT_LINE('Nombre: ' || v_producto.nombre);
+    DBMS_OUTPUT.PUT_LINE('Precio: ' || v_producto.precio);
+    DBMS_OUTPUT.PUT_LINE('Fabricante: ' || v_producto.codigo_fabricante);
+ 
+EXCEPTION 
+    WHEN no_data_found THEN
+        DBMS_OUTPUT.PUT_LINE('No Existe el producto: ' || v_codigo);
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || v_codigo);
+    
+END;
 ```
