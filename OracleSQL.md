@@ -298,6 +298,26 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('Nombre: ' || v_producto.nombre);
     DBMS_OUTPUT.PUT_LINE('Precio: ' || v_producto.precio);
     DBMS_OUTPUT.PUT_LINE('Fabricante: ' || v_producto.codigo_fabricante);
+
+END;
+```
+
+## Excepcioness
+```
+DECLARE
+    v_codigo producto.codigo%type := &codigo;
+    v_producto producto%rowtype;
+    
+BEGIN
+    
+    SELECT * INTO v_producto
+    FROM producto
+    WHERE codigo = v_codigo;
+    
+    DBMS_OUTPUT.PUT_LINE('Informacion del producto con codigo: ' || v_codigo);
+    DBMS_OUTPUT.PUT_LINE('Nombre: ' || v_producto.nombre);
+    DBMS_OUTPUT.PUT_LINE('Precio: ' || v_producto.precio);
+    DBMS_OUTPUT.PUT_LINE('Fabricante: ' || v_producto.codigo_fabricante);
  
 EXCEPTION 
     WHEN no_data_found THEN
@@ -306,4 +326,365 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('Error: ' || v_codigo);
     
 END;
+```
+
+## Excepcioness propias
+```
+DECLARE
+    v_codigo producto.codigo%type := &codigo;
+    v_producto producto%rowtype;
+    
+    limite_precio EXCEPTION;
+    
+BEGIN
+    
+    SELECT * INTO v_producto
+    FROM producto
+    WHERE codigo = v_codigo;
+    
+    IF v_producto.precio >= 100 THEN
+        RAISE limite_precio;
+    END IF;
+    
+    DBMS_OUTPUT.PUT_LINE('Informacion del producto con codigo: ' || v_codigo);
+    DBMS_OUTPUT.PUT_LINE('Nombre: ' || v_producto.nombre);
+    DBMS_OUTPUT.PUT_LINE('Precio: ' || v_producto.precio);
+    DBMS_OUTPUT.PUT_LINE('Fabricante: ' || v_producto.codigo_fabricante);
+ 
+EXCEPTION 
+    WHEN no_data_found THEN
+        DBMS_OUTPUT.PUT_LINE('No Existe el producto: ' || v_codigo);
+    WHEN limite_precio THEN
+        DBMS_OUTPUT.PUT_LINE('Se ha sperado el Limite');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || v_codigo);
+    
+END;
+```
+
+## Excepcioness RAISE_APPLICATION_ERROR
+```
+DECLARE
+    v_codigo producto.codigo%type := &codigo;
+    v_producto producto%rowtype;
+    
+    limite_precio EXCEPTION;
+    PRAGMA EXCEPTION_INIT (limite_precio, -20999);
+    
+BEGIN
+    
+    SELECT * INTO v_producto
+    FROM producto
+    WHERE codigo = v_codigo;
+    
+    IF v_producto.precio >= 100 THEN
+        RAISE_APPLICATION_ERROR(-20999, 'Se ha sperado el Limite');
+    END IF;
+    
+    DBMS_OUTPUT.PUT_LINE('Informacion del producto con codigo: ' || v_codigo);
+    DBMS_OUTPUT.PUT_LINE('Nombre: ' || v_producto.nombre);
+    DBMS_OUTPUT.PUT_LINE('Precio: ' || v_producto.precio);
+    DBMS_OUTPUT.PUT_LINE('Fabricante: ' || v_producto.codigo_fabricante);
+ 
+EXCEPTION 
+    WHEN no_data_found THEN
+        DBMS_OUTPUT.PUT_LINE('No Existe el producto: ' || v_codigo);
+    WHEN limite_precio THEN
+        DBMS_OUTPUT.PUT_LINE(sqlcode);
+        DBMS_OUTPUT.PUT_LINE(sqlerrm);
+        
+END;
+```
+
+## Procedimiento
+```
+CREATE OR REPLACE PROCEDURE infoProducto(p_codigo producto.codigo%type)
+AS
+    v_producto producto%rowtype;
+BEGIN
+    SELECT * INTO v_producto
+    FROM producto
+    WHERE codigo = p_codigo;
+    
+    IF v_producto.precio >= 100 THEN
+        RAISE_APPLICATION_ERROR(-20999, 'Se ha sperado el Limite');
+    END IF;
+    
+    DBMS_OUTPUT.PUT_LINE('Informacion del producto con codigo: ' || p_codigo);
+    DBMS_OUTPUT.PUT_LINE('Nombre: ' || v_producto.nombre);
+    DBMS_OUTPUT.PUT_LINE('Precio: ' || v_producto.precio);
+    DBMS_OUTPUT.PUT_LINE('Fabricante: ' || v_producto.codigo_fabricante);
+EXCEPTION 
+    WHEN no_data_found THEN
+        DBMS_OUTPUT.PUT_LINE('No Existe el producto: ' || p_codigo);
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || p_codigo);   
+END;
+```
+/
+```
+DECLARE
+    v_codigo producto.codigo%type := &codigo;    
+BEGIN
+    infoProducto(v_codigo);
+END;
+```
+/
+```
+EXECUTE infoProducto(2);
+EXEC infoProducto(5);
+```
+
+## Funcion
+```
+CREATE OR REPLACE FUNCTION obtenerProducto(p_codigo producto.codigo%type)
+RETURN producto%rowtype
+AS
+    v_producto producto%rowtype;
+BEGIN
+    SELECT * INTO v_producto
+    FROM producto
+    WHERE codigo = p_codigo;
+    
+    RETURN v_producto;
+EXCEPTION 
+    WHEN no_data_found THEN
+        DBMS_OUTPUT.PUT_LINE('No Existe el producto: ' || p_codigo);
+        RETURN NULL;
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || p_codigo);
+        RETURN NULL;
+END;
+```
+/
+```
+DECLARE
+    v_codigo producto.codigo%type := &codigo;
+    v_producto producto%rowtype;
+BEGIN
+    v_producto := obtenerProducto(v_codigo);
+    
+    IF v_producto.codigo IS NOT NULL THEN
+        DBMS_OUTPUT.PUT_LINE('Informacion del producto con codigo: ' || v_codigo);
+        DBMS_OUTPUT.PUT_LINE('Nombre: ' || v_producto.nombre);
+        DBMS_OUTPUT.PUT_LINE('Precio: ' || v_producto.precio);
+        DBMS_OUTPUT.PUT_LINE('Fabricante: ' || v_producto.codigo_fabricante);
+    END IF;
+END;
+```
+```
+DROP PROCEDURE infoProducto;
+```
+
+## Parametro de Entrada y Salida
+```
+CREATE OR REPLACE PROCEDURE infoProducto(p_codigo producto.codigo%type, p_producto OUT producto%rowtype)
+AS
+BEGIN
+    SELECT * INTO p_producto
+    FROM producto
+    WHERE codigo = p_codigo;
+EXCEPTION 
+    WHEN no_data_found THEN
+        DBMS_OUTPUT.PUT_LINE('No Existe el producto: ' || p_codigo);
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || p_codigo);
+END;
+```
+/
+```
+DECLARE
+    v_codigo producto.codigo%type := &codigo;
+    v_producto producto%rowtype;
+BEGIN
+    infoProducto(v_codigo, v_producto);
+    
+    IF v_producto.codigo IS NOT NULL THEN
+        DBMS_OUTPUT.PUT_LINE('Informacion del producto con codigo: ' || v_codigo);
+        DBMS_OUTPUT.PUT_LINE('Nombre: ' || v_producto.nombre);
+        DBMS_OUTPUT.PUT_LINE('Precio: ' || v_producto.precio);
+        DBMS_OUTPUT.PUT_LINE('Fabricante: ' || v_producto.codigo_fabricante);
+    END IF;
+END;
+```
+```
+DROP FUNCTION obtenerProducto;
+```
+
+## Paquete
+```
+CREATE OR REPLACE PACKAGE productos AS
+    PROCEDURE infoProducto(p_codigo producto.codigo%type);
+    FUNCTION obtenerProducto(p_codigo producto.codigo%type) RETURN producto%rowtype;
+END;
+```
+/
+```
+CREATE OR REPLACE PACKAGE BODY productos AS
+
+    PROCEDURE infoProducto(p_codigo producto.codigo%type)
+    AS
+        v_producto producto%rowtype;
+    BEGIN
+        SELECT * INTO v_producto
+        FROM producto
+        WHERE codigo = p_codigo;
+        
+        DBMS_OUTPUT.PUT_LINE('Informacion del producto con codigo: ' || p_codigo);
+        DBMS_OUTPUT.PUT_LINE('Nombre: ' || v_producto.nombre);
+        DBMS_OUTPUT.PUT_LINE('Precio: ' || v_producto.precio);
+        DBMS_OUTPUT.PUT_LINE('Fabricante: ' || v_producto.codigo_fabricante);
+    EXCEPTION 
+        WHEN no_data_found THEN
+            DBMS_OUTPUT.PUT_LINE('No Existe el producto: ' || p_codigo);
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('Error: ' || p_codigo);   
+    END;
+    
+    FUNCTION obtenerProducto(p_codigo producto.codigo%type) RETURN producto%rowtype
+    AS
+        v_producto producto%rowtype;
+    BEGIN
+        SELECT * INTO v_producto
+        FROM producto
+        WHERE codigo = p_codigo;
+    
+        RETURN v_producto;
+    EXCEPTION 
+        WHEN no_data_found THEN
+            DBMS_OUTPUT.PUT_LINE('No Existe el producto: ' || p_codigo);
+            RETURN NULL;
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('Error: ' || p_codigo);
+            RETURN NULL;        
+    END;        
+
+END;
+```
+/
+```
+DECLARE
+    v_codigo producto.codigo%type := &codigo;
+    v_producto producto%rowtype;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('PROCEDIMIENTO');
+    productos.infoproducto(v_codigo);
+    
+    DBMS_OUTPUT.PUT_LINE('FUNCION'); 
+    v_producto := productos.obtenerproducto(v_codigo);
+    
+    IF v_producto.codigo IS NOT NULL THEN
+        DBMS_OUTPUT.PUT_LINE('Informacion del producto con codigo: ' || v_codigo);
+        DBMS_OUTPUT.PUT_LINE('Nombre: ' || v_producto.nombre);
+        DBMS_OUTPUT.PUT_LINE('Precio: ' || v_producto.precio);
+        DBMS_OUTPUT.PUT_LINE('Fabricante: ' || v_producto.codigo_fabricante);
+    END IF;    
+END;
+```
+```
+DROP PACKAGE productos;
+```
+
+## Cursores
+```
+DECLARE
+    CURSOR c_productos IS
+        SELECT * 
+        FROM producto
+        ORDER BY precio;
+        
+    v_producto producto%rowtype;
+BEGIN
+
+    OPEN c_productos;
+        LOOP
+            FETCH c_productos INTO v_producto;
+            EXIT WHEN c_productos%notfound;
+            
+            DBMS_OUTPUT.PUT_LINE('Informacion prodcuto con codigo ' || v_producto.codigo);
+            DBMS_OUTPUT.PUT_LINE('nombre' || v_producto.nombre);
+            DBMS_OUTPUT.PUT_LINE('Precio' || v_producto.precio);
+            DBMS_OUTPUT.PUT_LINE('Fabricante: ' || v_producto.codigo_fabricante);
+            DBMS_OUTPUT.PUT_LINE('');            
+        END LOOP;
+    CLOSE c_productos;
+
+END;
+```
+
+```
+DECLARE
+    CURSOR c_productos IS
+        SELECT * 
+        FROM producto
+        ORDER BY precio;
+        
+    v_producto producto%rowtype;
+    
+    CURSOR c_productos_fabricante IS
+        SELECT
+            p.codigo,
+            p.nombre,
+            p.precio,
+            f.nombre AS fabricante
+        FROM producto p, fabricante f
+        WHERE p.codigo_fabricante = f.codigo
+        ORDER BY p.precio;
+BEGIN
+
+    DBMS_OUTPUT.PUT_LINE('Cursor c_productos');
+    OPEN c_productos;
+        LOOP
+            FETCH c_productos INTO v_producto;
+            EXIT WHEN c_productos%notfound;
+            
+            DBMS_OUTPUT.PUT_LINE('Informacion prodcuto con codigo ' || v_producto.codigo);
+            DBMS_OUTPUT.PUT_LINE('nombre' || v_producto.nombre);
+            DBMS_OUTPUT.PUT_LINE('Precio' || v_producto.precio);
+            DBMS_OUTPUT.PUT_LINE('Fabricante: ' || v_producto.codigo_fabricante);
+            DBMS_OUTPUT.PUT_LINE('');            
+        END LOOP;
+    CLOSE c_productos;
+
+    DBMS_OUTPUT.PUT_LINE('Cursor c_productos_fabricante');
+    FOR registro IN c_productos_fabricante 
+        LOOP
+            DBMS_OUTPUT.PUT_LINE('Informacion prodcuto con codigo ' || registro.codigo);
+            DBMS_OUTPUT.PUT_LINE('nombre' || registro.nombre);
+            DBMS_OUTPUT.PUT_LINE('Precio' || registro.precio);
+            DBMS_OUTPUT.PUT_LINE('Fabricante: ' || registro.fabricante);
+            DBMS_OUTPUT.PUT_LINE('');  
+        END LOOP;
+END;
+```
+
+```
+DECLARE
+    CURSOR c_productos_fabricante(p_cod_fab NUMBER) IS
+        SELECT * 
+        FROM producto
+        WHERE codigo_fabricante = p_cod_fab
+        ORDER BY precio;
+        
+    v_codigo_fabricante fabricante.codigo%type := &codigo;
+    v_producto producto%rowtype;
+    
+BEGIN
+
+    OPEN c_productos_fabricante(v_codigo_fabricante);
+        LOOP
+            FETCH c_productos_fabricante INTO v_producto;
+            EXIT WHEN c_productos_fabricante%notfound;
+            
+            DBMS_OUTPUT.PUT_LINE('Informacion prodcuto con codigo ' || v_producto.codigo);
+            DBMS_OUTPUT.PUT_LINE('nombre' || v_producto.nombre);
+            DBMS_OUTPUT.PUT_LINE('Precio' || v_producto.precio);
+            DBMS_OUTPUT.PUT_LINE(''); 
+        END LOOP;
+    CLOSE c_productos_fabricante;
+END;
+```
+
+## Trigger
+```
 ```
