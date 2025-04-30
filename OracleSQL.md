@@ -687,4 +687,79 @@ END;
 
 ## Trigger
 ```
+CREATE OR REPLACE TRIGGER estado_operacion_before
+BEFORE INSERT OR UPDATE OR DELETE ON producto
+BEGIN
+
+    IF INSERTING THEN
+        DBMS_OUTPUT.PUT_LINE('Insertando Productos...'); 
+    ELSIF UPDATING THEN
+        DBMS_OUTPUT.PUT_LINE('Actualizando Productos...'); 
+    ELSIF DELETING THEN
+        DBMS_OUTPUT.PUT_LINE('Eliminando Productos...'); 
+    END IF;
+
+END;
+
+/
+
+CREATE OR REPLACE TRIGGER estado_operacion_after
+AFTER INSERT OR UPDATE OR DELETE ON producto
+BEGIN
+
+    IF INSERTING THEN
+        DBMS_OUTPUT.PUT_LINE('Producto/s Insertando/s'); 
+    ELSIF UPDATING THEN
+        DBMS_OUTPUT.PUT_LINE('Producto/s Actualizando/s'); 
+    ELSIF DELETING THEN
+        DBMS_OUTPUT.PUT_LINE('Producto/s Eliminando/s'); 
+    END IF;
+
+END;
+```
+```
+CREATE OR REPLACE TRIGGER validacion_producto
+BEFORE INSERT OR UPDATE ON producto FOR EACH ROW
+DECLARE
+    v_num_fabricantes NUMBER(4);
+BEGIN
+
+    IF :NEW.precio < 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'El precio no puede ser negativo' );
+    END IF;
+
+    SELECT COUNT(*) INTO v_num_fabricantes
+    FROM fabricante
+    WHERE codigo = :NEW.codigo_fabricante;
+
+    IF v_num_fabricantes = 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'El fabricante no Existe' );
+    END IF;
+
+END;
+
+/
+
+INSERT INTO producto (codigo, nombre, precio, codigo_fabricante)
+VALUES (12, 'Nuevo producto', 100, 1);
+```
+```
+CREATE OR REPLACE TRIGGER cambio_fabricante
+BEFORE UPDATE OF codigo_fabricante ON producto FOR EACH ROW
+BEGIN
+
+    IF :NEW.codigo_fabricante <> :OLD.codigo_fabricante THEN
+        :NEW.precio := :OLD.precio + 10;
+    END IF;
+
+END;
+
+/
+
+UPDATE producto
+SET codigo_fabricante = 5
+WHERE codigo = 1;
+```
+```
+DELETE FROM producto WHERE codigo = 12;
 ```
