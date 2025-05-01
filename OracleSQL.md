@@ -763,3 +763,287 @@ WHERE codigo = 1;
 ```
 DELETE FROM producto WHERE codigo = 12;
 ```
+
+## Stored Procedure
+- Output object
+```
+CREATE OR REPLACE TYPE ResultObj AS OBJECT (
+    IsSuccess NUMBER(1),
+    Message VARCHAR2(255),
+    Data VARCHAR2(255)
+);
+```
+- SP Insert
+```
+CREATE OR REPLACE PROCEDURE sp_hunter_insert(
+    p_name IN hunter.name%TYPE,
+    p_age IN hunter.age%TYPE,
+    p_origin IN hunter.origin%TYPE,
+    p_result OUT ResultObj
+)
+AS
+    v_id_hunter hunter.id_hunter%TYPE;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('Execute sp_hunter_insert'); 
+
+    IF p_name IS NULL OR p_age IS NULL OR p_origin IS NULL THEN
+        p_result := ResultObj(0, 'Name, age, and origin are required', NULL);
+        RETURN;
+    END IF;
+    
+    IF p_age <= 0 THEN
+        p_result := ResultObj(0, 'Age must be greater than 0', NULL);
+        RETURN;
+    END IF;    
+
+    INSERT INTO hunter (name, age, origin)
+    VALUES (p_name, p_age, p_origin)
+    RETURNING id_hunter INTO v_id_hunter;
+    
+    COMMIT;
+    
+    p_result := ResultObj(1, 'Hunter inserted successfully', TO_CHAR(v_id_hunter));
+EXCEPTION
+    WHEN OTHERS THEN
+        p_result := ResultObj(0, SQLERRM, NULL);
+        ROLLBACK;    
+END;
+
+/
+
+DECLARE
+    v_result ResultObj;
+BEGIN
+    sp_hunter_insert('Prueba', 100, 'Chile', v_result);
+    DBMS_OUTPUT.PUT_LINE('Resultado:');
+    DBMS_OUTPUT.PUT_LINE('IsSucces: ' || v_result.IsSuccess);
+    DBMS_OUTPUT.PUT_LINE('Message: ' || v_result.Message);
+    DBMS_OUTPUT.PUT_LINE('Data: ' || v_result.Data);
+END;
+```
+- SP Delete
+```
+CREATE OR REPLACE PROCEDURE sp_hunter_delete(
+    p_id_hunter hunter.id_hunter%TYPE,
+    p_result OUT ResultObj
+)
+AS
+    v_count NUMBER;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('Execute sp_hunter_delete');
+
+    IF p_id_hunter IS NULL THEN
+        p_result := ResultObj(0, 'Parameter id_hunter cannot be NULL', NULL);
+        RETURN;
+    END IF;
+
+    SELECT COUNT(1) INTO v_count FROM hunter_nen WHERE id_hunter = p_id_hunter;
+    IF v_count > 0 THEN
+        p_result := ResultObj(0, 'This hunter has dependencies in hunter_nen', null);
+        RETURN;
+    END IF;
+
+    SELECT COUNT(1) INTO v_count FROM hunter WHERE id_hunter = p_id_hunter;
+    IF v_count = 0 THEN
+        p_result := ResultObj(0, 'Hunter does not exist', NULL);
+        RETURN;
+    END IF;
+
+    DELETE FROM hunter
+    WHERE id_hunter = p_id_hunter;
+    
+    COMMIT;
+    
+    p_result := ResultObj(1, 'Hunter deleted successfully', null);
+EXCEPTION
+    WHEN OTHERS THEN
+        p_result := ResultObj(0, SQLERRM, NULL);
+        ROLLBACK;    
+END;
+
+/
+
+DECLARE
+    v_result ResultObj;
+BEGIN
+    sp_hunter_delete(NULL, v_result);
+    DBMS_OUTPUT.PUT_LINE('Resultado:');
+    DBMS_OUTPUT.PUT_LINE('IsSucces: ' || v_result.IsSuccess);
+    DBMS_OUTPUT.PUT_LINE('Message: ' || v_result.Message);
+    DBMS_OUTPUT.PUT_LINE('Data: ' || v_result.Data);
+END;
+
+/
+
+DECLARE
+    v_result ResultObj;
+BEGIN
+    sp_hunter_delete(99999, v_result);
+    DBMS_OUTPUT.PUT_LINE('Resultado:');
+    DBMS_OUTPUT.PUT_LINE('IsSucces: ' || v_result.IsSuccess);
+    DBMS_OUTPUT.PUT_LINE('Message: ' || v_result.Message);
+    DBMS_OUTPUT.PUT_LINE('Data: ' || v_result.Data);
+END;
+```
+- SP Update
+```
+CREATE OR REPLACE PROCEDURE sp_hunter_update(
+    p_id_hunter IN hunter.id_hunter%TYPE,
+    p_name IN hunter.name%TYPE,
+    p_age IN hunter.age%TYPE,
+    p_origin IN hunter.origin%TYPE,
+    p_result OUT ResultObj
+)
+AS
+    v_count NUMBER;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('Execute sp_hunter_update'); 
+
+    IF p_id_hunter IS NULL OR p_name IS NULL OR p_age IS NULL OR p_origin IS NULL THEN
+        p_result := ResultObj(0, 'Id_Hunter, name, age, and origin are required', NULL);
+        RETURN;
+    END IF;
+    
+    IF p_age <= 0 THEN
+        p_result := ResultObj(0, 'Age must be greater than 0', NULL);
+        RETURN;
+    END IF;    
+
+    SELECT COUNT(1) INTO v_count FROM hunter WHERE id_hunter = p_id_hunter;
+    IF v_count = 0 THEN
+        p_result := ResultObj(0, 'Hunter does not exist', NULL);
+        RETURN;
+    END IF;
+
+    UPDATE hunter SET
+        name = p_name,
+        age = p_age,
+        origin = p_origin
+    WHERE id_hunter = p_id_hunter;
+
+    COMMIT;
+    
+    p_result := ResultObj(1, 'Hunter updated successfully', TO_CHAR(p_id_hunter));
+EXCEPTION
+    WHEN OTHERS THEN
+        p_result := ResultObj(0, SQLERRM, NULL);
+        ROLLBACK;    
+END;
+
+/
+
+DECLARE
+    v_result ResultObj;
+BEGIN
+    sp_hunter_update(21, 'Netero', 150, 'Japon', v_result);
+    DBMS_OUTPUT.PUT_LINE('Resultado:');
+    DBMS_OUTPUT.PUT_LINE('IsSucces: ' || v_result.IsSuccess);
+    DBMS_OUTPUT.PUT_LINE('Message: ' || v_result.Message);
+    DBMS_OUTPUT.PUT_LINE('Data: ' || v_result.Data);
+END;
+```
+- SP Get All
+```
+CREATE OR REPLACE PROCEDURE sp_hunter_get_all(
+    p_cursor OUT SYS_REFCURSOR,
+    p_result OUT ResultObj
+)
+AS
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('Execute sp_hunter_get_all');
+
+    OPEN p_cursor FOR
+        SELECT id_hunter, name, age, origin FROM hunter ORDER BY id_hunter;
+
+    p_result := ResultObj(1, 'All hunters retrieved successfully', NULL);
+EXCEPTION
+    WHEN OTHERS THEN
+        p_result := ResultObj(0, SQLERRM, NULL);
+        p_cursor := NULL;
+END;
+
+/
+
+DECLARE
+    v_cursor SYS_REFCURSOR;
+    v_result ResultObj;
+    v_id_hunter hunter.id_hunter%TYPE;
+    v_name hunter.name%TYPE;
+    v_age hunter.age%TYPE;
+    v_origin hunter.origin%TYPE;
+BEGIN
+    sp_hunter_get_all(p_cursor => v_cursor, p_result => v_result);
+    
+    DBMS_OUTPUT.PUT_LINE('Resultado:');
+    DBMS_OUTPUT.PUT_LINE('IsSucces: ' || v_result.IsSuccess);
+    DBMS_OUTPUT.PUT_LINE('Message: ' || v_result.Message);
+    DBMS_OUTPUT.PUT_LINE('Data: ' || v_result.Data);
+    
+    LOOP
+        FETCH v_cursor INTO v_id_hunter, v_name, v_age, v_origin;
+        EXIT WHEN v_cursor%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE('ID: ' || v_id_hunter || ', Name: ' || v_name || ', Age: ' || v_age || ', Origin: ' || v_origin);
+    END LOOP;
+
+    CLOSE v_cursor;
+END;
+```
+- SP Get By Id
+```
+CREATE OR REPLACE PROCEDURE sp_hunter_get_by_id(
+    p_id_hunter IN hunter.id_hunter%TYPE,
+    p_cursor OUT SYS_REFCURSOR,
+    p_result OUT ResultObj
+)
+AS
+    v_count NUMBER;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('Execute sp_hunter_get_by_id');
+
+    IF p_id_hunter IS NULL THEN
+        p_result := ResultObj(0, 'Id_Hunter is required', NULL);
+        RETURN;
+    END IF;
+
+    SELECT COUNT(*) INTO v_count FROM hunter WHERE id_hunter = p_id_hunter;
+    IF v_count = 0 THEN
+        p_result := ResultObj(0, 'Hunter does not exist', NULL);
+        RETURN;
+    END IF;
+
+    OPEN p_cursor FOR
+        SELECT id_hunter, name, age, origin FROM hunter WHERE id_hunter = p_id_hunter;
+
+    p_result := ResultObj(1, 'Hunter found', NULL);
+EXCEPTION
+    WHEN OTHERS THEN
+        p_result := ResultObj(0, SQLERRM, NULL);
+        p_cursor := NULL;
+END;
+
+/
+
+DECLARE
+    v_cursor SYS_REFCURSOR;
+    v_result ResultObj;
+    v_id_hunter hunter.id_hunter%TYPE := 1;  -- ID a buscar
+    v_name hunter.name%TYPE;
+    v_age hunter.age%TYPE;
+    v_origin hunter.origin%TYPE;
+BEGIN
+    sp_hunter_get_by_id(p_id_hunter => v_id_hunter, p_cursor => v_cursor, p_result => v_result);
+    
+    DBMS_OUTPUT.PUT_LINE('Resultado:');
+    DBMS_OUTPUT.PUT_LINE('IsSucces: ' || v_result.IsSuccess);
+    DBMS_OUTPUT.PUT_LINE('Message: ' || v_result.Message);
+    DBMS_OUTPUT.PUT_LINE('Data: ' || v_result.Data);
+    
+   LOOP
+        FETCH v_cursor INTO v_id_hunter, v_name, v_age, v_origin;
+        EXIT WHEN v_cursor%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE('ID: ' || v_id_hunter || ', Name: ' || v_name || ', Age: ' || v_age || ', Origin: ' || v_origin);
+    END LOOP;
+
+    CLOSE v_cursor;
+END;
+```
