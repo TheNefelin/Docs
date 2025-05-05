@@ -26,7 +26,7 @@ docker container create -e <ENVIRONMENT> <IMAGE>
 docker container start <CONTAINER ID>
 ```
 
-### SQL Server
+# SQL Server
 * [download image](https://hub.docker.com/r/microsoft/mssql-server)
 * [download client](https://learn.microsoft.com/en-us/ssms/download-sql-server-management-studio-ssms)
 ```
@@ -58,7 +58,7 @@ GO
 EXEC sp_addrolemember 'db_owner', 'testing';
 ```
 
-### MySQL
+# MySQL
 * [download image](https://hub.docker.com/_/mysql)
 * [download client](https://www.mysql.com/products/workbench/)
 ```
@@ -77,7 +77,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON db_testing.* TO 'testing'@'%';
 GRANT REFERENCES ON db_testing.* TO 'testing'@'%';
 ```
 
-### PostgreSQL
+# PostgreSQL
 * [download image](https://hub.docker.com/_/postgres)
 * [download client](https://www.pgadmin.org/download/pgadmin-4-windows/)
 ```
@@ -92,7 +92,7 @@ CREATE USER testing WITH PASSWORD 'testing';
 GRANT ALL PRIVILEGES ON DATABASE db_testing TO testing;
 ```
 
-### Oracle DB Express
+# Oracle DB Express
 * [download image](https://container-registry.oracle.com/ords/f?p=113:4:105333891478907:::4:P4_REPOSITORY,AI_REPOSITORY,AI_REPOSITORY_NAME,P4_REPOSITORY_NAME,P4_EULA_ID,P4_BUSINESS_AREA_ID:803,803,Oracle%20Database%20Express%20Edition,Oracle%20Database%20Express%20Edition,1,0&cs=3nyqRm68Ce-NlRqxB5kV6wtDNVUeH2VcOEFM6hC2yc5gE1tTvG0KYtsuSNrn-BJUHFVeGHKKwJDNY4V7-R-EhBw)
 * [download client](https://www.oracle.com/cl/database/sqldeveloper/)
 ```
@@ -107,7 +107,14 @@ CREATE USER testing IDENTIFIED BY testing;
 GRANT ALL PRIVILEGES TO testing;
 ```
 
-## Docker File
+# Azurite
+- Azure Emulator
+```
+docker run -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite
+docker run --name Azurite-Emulator -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite
+```
+
+# Docker File
 
 ### Java 21 + MySQL + Tomkat 10 + .war
 * Dockerfile
