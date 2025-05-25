@@ -61,7 +61,7 @@
 
 * <strong>Programacion Funcional:</strong> Son como funciones anonimas
   * Funciones como Objetos
-  ```
+  ```java
   public class FunctionalExample {
     public static void main(String[] args) {
         Function<Integer, String> intToString = (i) -> "Number: " + i;
@@ -100,7 +100,7 @@
 ## Patrones de Diseño
 
 ### Singleton
-```
+```java
 public class Singleton {
     private static Singleton instancia;
 
@@ -117,7 +117,7 @@ public class Singleton {
 ```
 
 ### Factory: crear objetos sin especificar la clase exacta del objeto
-```
+```java
 public class AnimalFactory {
     public static Animal crearAnimal(String tipo) {
         switch (tipo) {
@@ -130,7 +130,7 @@ public class AnimalFactory {
 ```
 
 ## Manejo de Colecciones
-```
+```java
 public class UniqueList {
     public static List<Integer> obtenerUnicos(List<Integer> lista) {
         Set<Integer> set = new HashSet<>(lista);
@@ -139,7 +139,7 @@ public class UniqueList {
 }
 ```
 
-```
+```java
 public class UniqueList {
     public static List<Integer> obtenerUnicos(List<Integer> lista) {
         return lista.stream().distinct().toList();
@@ -148,7 +148,7 @@ public class UniqueList {
 ```
 
 ## Excepciones y Manejo de Errores
-```
+```java
 public class FileReaderExample {
     public String leerArchivo(String ruta) {
         StringBuilder contenido = new StringBuilder();
@@ -168,7 +168,7 @@ public class FileReaderExample {
 ```
 
 ## Concurrencia
-```
+```java
 public class Contador extends Thread {
     @Override
     public void run() {

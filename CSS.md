@@ -1,12 +1,12 @@
 # CSS
 
-```
+```css
 html {
   scroll-behavior: smooth;
 }
 ```
 
-```
+```css
 /* Chrome, Safari */
 body::-webkit-scrollbar{
   display: none !important;
@@ -17,7 +17,7 @@ html::-webkit-scrollbar{
 }
 ```
 
-```
+```css
 /* Para Firefox */
 body {
   scrollbar-width: none !important; 

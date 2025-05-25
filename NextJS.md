@@ -38,13 +38,13 @@ graph TD;
 ###
 * Rub
 * Build
-```
+```cmd
 npm run dev
 npm run build
 ```
 
 # Condicionales
-```
+```typescript
 export default async function NommbreFuncion() {
   const fetching = new Fetching()
   const apiResult: ApiResult = await fetching.get_all_games_async()
@@ -65,7 +65,7 @@ export default async function NommbreFuncion() {
   )  
 }
 ```
-```
+```typescript
 export default async function NommbreFuncion() {
   const fetching = new Fetching()
   const apiResult: ApiResult = await fetching.get_all_games_async()
@@ -87,7 +87,7 @@ export default async function NommbreFuncion() {
 ```
 
 # Pasar Datos a hijos
-```
+```typescript
 interface SideBarProps {
   data: MyType[]
 }
@@ -107,7 +107,7 @@ export default function NommbreFuncion({data}: SideBarProps) {
   )
 }
 ```
-```
+```typescript
 import React, { FC } from 'react';
 
 const NommbreFuncion: FC<{data: MyType[]}> = ({data}) => {

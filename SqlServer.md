@@ -1,5 +1,5 @@
 # MS SQL Server
-```
+```sql
 -- Tables -------------------------------------------------------
 -- --------------------------------------------------------------
 
@@ -17,7 +17,7 @@
 ```
 
 ## Crear Usuario
-```
+```sql
 SELECT 
 	NAME AS LoginName, 
 	TYPE_DESC AS AccountType, 
@@ -28,7 +28,7 @@ FROM sys.server_principals
 WHERE TYPE IN ('S', 'U', 'G');
 GO
 ```
-```
+```sql
 CREATE LOGIN testing WITH PASSWORD = 'testing', CHECK_POLICY = OFF;
 GO
 CREATE DATABASE db_testing
@@ -39,12 +39,12 @@ CREATE USER testing FOR LOGIN testing;
 GO
 EXEC sp_addrolemember 'db_owner', 'testing';
 ```
-```
+```sql
 USE db_testing
 ```
 
 ## Crear un registro y recibir datos al mismo tiempo
-```
+```sql
 INSERT INTO GG_Users 
     (Id, Email, GoogleSUB, GoogleJTI, SqlToken)
 OUTPUT inserted.SqlToken
@@ -53,7 +53,7 @@ VALUES
 ```
 
 ## Modificar un registro y recibir datos al mismo tiempo
-```
+```sql
 UPDATE GG_Users SET 
     Email = @Email,
     GoogleSUB = @GoogleSUB,
@@ -64,7 +64,7 @@ WHERE Id = @Id
 ```
 
 ## Crear Tablas
-```
+```sql
 CREATE TABLE Mae_Config (
     Id INT PRIMARY KEY IDENTITY(1,1),
     ApiKey varchar(256) NOT NULL
@@ -72,7 +72,7 @@ CREATE TABLE Mae_Config (
 GO
 ```
 * 1 a N
-```
+```sql
 CREATE TABLE Perfiles (
     Id INT PRIMARY KEY IDENTITY(1,1),
     Nombre VARCHAR(50) NOT NULL,
@@ -93,7 +93,7 @@ CREATE TABLE Usuarios (
 GO
 ```
 * N a N
-```
+```sql
 CREATE TABLE Cazadores (
     Id INT PRIMARY KEY IDENTITY(1,1),
     Nombre VARCHAR(100) NOT NULL,
@@ -119,7 +119,7 @@ GO
 ```
 
 ## Crear Procedimiento Almacenado con Try
-```
+```sql
 CREATE PROCEDURE Auth_Register
     @Id VARCHAR(256),
     @Email VARCHAR(100),
@@ -152,7 +152,7 @@ GO
 ```
 
 ## Crear Procedimiento Almacenado con Transaccion
-```
+```sql
 CREATE PROCEDURE Cazadores_Insert
     @Nombre AS VARCHAR(50),
     @Edad AS INT
@@ -180,7 +180,7 @@ BEGIN
 END
 GO
 ```
-```
+```sql
 CREATE PROCEDURE GG_GuidesUser_Set
     @Id_Guide INT,
     @Id_User VARCHAR(256),
@@ -234,7 +234,7 @@ GO
 ```
 
 ## Insertar Data Desactivado y Activado el Identity
-```
+```sql
 SET IDENTITY_INSERT Auth_Perfil ON
 GO
 
@@ -249,7 +249,7 @@ GO
 ```
 
 # Metodos Autenticacion
-```
+```sql
 DECLARE @Clave NVARCHAR(100) = 'ABC123'
 
 DECLARE @Salt VARBINARY(16)

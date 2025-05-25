@@ -4,7 +4,7 @@
 [Download Doker Images](https://hub.docker.com/)
 
 ## Some Commands
-```
+```cmd
 docker ps
 docker ps -a
 docker container start <CONTAINER ID>
@@ -20,7 +20,7 @@ docker logs <CONTAINER ID>
 * Start container
 * -e (environment)
 * -p (ServerPort:DockerPort) (8080:80)
-```
+```cmd
 docker pull <IMAGE>
 docker container create -e <ENVIRONMENT> <IMAGE>
 docker container start <CONTAINER ID>
@@ -29,15 +29,17 @@ docker container start <CONTAINER ID>
 # SQL Server
 * [download image](https://hub.docker.com/r/microsoft/mssql-server)
 * [download client](https://learn.microsoft.com/en-us/ssms/download-sql-server-management-studio-ssms)
-```
+```cmd
 docker pull mcr.microsoft.com/mssql/server 
-
+```
+```cmd
 docker container create -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=mysecretpassword" -e "MSSQL_PID=Developer" -p 1433:1433 --name SQLServer mcr.microsoft.com/mssql/server
-
+```
+```cmd
 docker container start <CONTAINER ID>
 ```
 * New SQL User
-```
+```sql
 SELECT 
 	NAME AS LoginName, 
 	TYPE_DESC AS AccountType, 
@@ -61,13 +63,14 @@ EXEC sp_addrolemember 'db_owner', 'testing';
 # MySQL
 * [download image](https://hub.docker.com/_/mysql)
 * [download client](https://www.mysql.com/products/workbench/)
-```
+```cmd
 docker pull mysql
-
+```
+```cmd
 docker run --name MySQL -e MYSQL_ROOT_PASSWORD=mysecretpassword -p 3306:3306 -d mysql
 ```
 * New SQL User
-```
+```sql
 CREATE DATABASE db_testing;
 USE db_testing;
 
@@ -80,13 +83,14 @@ GRANT REFERENCES ON db_testing.* TO 'testing'@'%';
 # PostgreSQL
 * [download image](https://hub.docker.com/_/postgres)
 * [download client](https://www.pgadmin.org/download/pgadmin-4-windows/)
-```
+```cmd
 docker pull postgres
-
+```
+```cmd
 docker run --name PostgreSQL -e POSTGRES_PASSWORD=mysecretpassword -p 5432:5432 -d postgres
 ```
 * New SQL User
-```
+```sql
 CREATE DATABASE db_testing;
 CREATE USER testing WITH PASSWORD 'testing';
 GRANT ALL PRIVILEGES ON DATABASE db_testing TO testing;
@@ -95,13 +99,14 @@ GRANT ALL PRIVILEGES ON DATABASE db_testing TO testing;
 # Oracle DB Express
 * [download image](https://container-registry.oracle.com/ords/f?p=113:4:105333891478907:::4:P4_REPOSITORY,AI_REPOSITORY,AI_REPOSITORY_NAME,P4_REPOSITORY_NAME,P4_EULA_ID,P4_BUSINESS_AREA_ID:803,803,Oracle%20Database%20Express%20Edition,Oracle%20Database%20Express%20Edition,1,0&cs=3nyqRm68Ce-NlRqxB5kV6wtDNVUeH2VcOEFM6hC2yc5gE1tTvG0KYtsuSNrn-BJUHFVeGHKKwJDNY4V7-R-EhBw)
 * [download client](https://www.oracle.com/cl/database/sqldeveloper/)
-```
+```cmd
 docker pull container-registry.oracle.com/database/express:latest
-
+```
+```cmd
 docker run --name OracleDB -p 1521:1521 -e ORACLE_PWD=mysecretpassword -d container-registry.oracle.com/database/express:latest
 ```
 * New SQL User
-```
+```sql
 ALTER SESSION SET "_ORACLE_SCRIPT"=TRUE;
 CREATE USER testing IDENTIFIED BY testing;
 GRANT ALL PRIVILEGES TO testing;
@@ -109,8 +114,10 @@ GRANT ALL PRIVILEGES TO testing;
 
 # Azurite
 - Azure Emulator
-```
+```cmd
 docker run -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite
+```
+```cmd
 docker run --name Azurite-Emulator -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite
 ```
 
@@ -118,7 +125,7 @@ docker run --name Azurite-Emulator -p 10000:10000 -p 10001:10001 -p 10002:10002 
 
 ### Java 21 + MySQL + Tomkat 10 + .war
 * Dockerfile
-```
+```dockerfile
 FROM tomcat:10.1-jdk21
 
 WORKDIR /usr/local/tomcat/webapps/
@@ -130,7 +137,7 @@ EXPOSE 8080
 CMD ["catalina.sh", "run"]
 ```
 * docker-compose.yml
-```
+```yml
 services:
   mysql:
     image: mysql
@@ -157,7 +164,7 @@ services:
 ```
 
 * Build and run
-```
+```cmd
 docker compose up --build
 ```
 
@@ -181,7 +188,7 @@ server.port=8080
 <hr>
 
 ## Docker init
-```
+```cmd
 docker init
 ```
 

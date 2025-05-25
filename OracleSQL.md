@@ -5,13 +5,13 @@
 ## Bloque Anonimo
 * ver/salida de DBMS
 * nueva ventana
-```
+```sql
 BEGIN
     DBMS_OUTPUT.PUT_LINE('Hola Mundo');
 END;
 ```
 * varios bloques anonimos se agrega /
-```
+```sql
 BEGIN
     DBMS_OUTPUT.PUT_LINE('Hola Mundo');
 END;
@@ -22,7 +22,7 @@ END;
 ```
 
 ## Variables
-```
+```sql
 DECLARE
     v_num NUMBER(2) := 10;
     v_cadena VARCHAR(10) := 'Francisco';
@@ -39,7 +39,7 @@ END;
 ```
 
 ## Asignar Valor a Variables por Usuario
-```
+```sql
 DECLARE
     v_op1 NUMBER(2) := &operando1;
     v_op2 NUMBER(2) := &operando3;
@@ -68,7 +68,7 @@ OR
 ```
 
 ## Operaciones
-```
+```sql
 DECLARE
     v_n1 NUMBER(2) := 10;
     v_n2 NUMBER(2) := 2;
@@ -84,7 +84,7 @@ END;
 
 ## Condiciones
 * IF
-```
+```sql
 DECLARE
     v_n1 NUMBER(2) := 1;
     v_n2 NUMBER(2) := 2;
@@ -104,7 +104,7 @@ END;
 ```
 
 ## Case
-```
+```sql
 DECLARE
     v_dia NUMBER(1) := &dia;
     
@@ -133,7 +133,7 @@ END;
 ```
 
 ## Bucles
-```
+```sql
 DECLARE
     v_i NUMBER(2) := 1;
     
@@ -184,7 +184,7 @@ END;
 ```
 
 ## Arreglos
-```
+```sql
 DECLARE
     TYPE alumnosarray IS VARRAY(3) OF VARCHAR2(20);
     v_alumnos alumnosarray := alumnosarray('Netero', 'Hisoka', 'Kuroro');
@@ -203,7 +203,7 @@ END;
 ```
 
 ## Tablas
-```
+```sql
 CREATE TABLE fabricante (
     codigo NUMBER PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL
@@ -218,7 +218,7 @@ CREATE TABLE producto (
 );
 ```
 
-```
+```sql
 INSERT INTO fabricante VALUES(1, 'Asus');
 INSERT INTO fabricante VALUES(2, 'Lenovo');
 INSERT INTO fabricante VALUES(3, 'Hewlett-Packard');
@@ -230,7 +230,7 @@ INSERT INTO fabricante VALUES(8, 'Huawei');
 INSERT INTO fabricante VALUES(9, 'Xiaomi');
 ```
 
-```
+```sql
 INSERT INTO producto VALUES(1, 'Disco duro SATA3 1TB', 86.99, 5);
 INSERT INTO producto VALUES(2, 'Memoria RAM DDR4 8GB', 120, 6);
 INSERT INTO producto VALUES(3, 'Disco SSD 1 TB', 150.99, 4);
@@ -245,7 +245,7 @@ INSERT INTO producto VALUES(11, 'Impresora HP Laserjet Pro M26nw', 180, 3);
 ```
 
 ## Select Into
-```
+```sql
 DECLARE
     v_total NUMBER(8);
     v_suma_productos NUMBER(8,2);
@@ -266,7 +266,7 @@ END;
 ```
 
 ## Atributo Type
-```
+```sql
 DECLARE
     v_codigo producto.codigo%type := &codigo; 
     v_nombre producto.nombre%type;
@@ -283,7 +283,7 @@ END;
 ```
 
 ## Atributo RowType
-```
+```sql
 DECLARE
     v_codigo producto.codigo%type := &codigo;
     v_producto producto%rowtype;
@@ -303,7 +303,7 @@ END;
 ```
 
 ## Excepcioness
-```
+```sql
 DECLARE
     v_codigo producto.codigo%type := &codigo;
     v_producto producto%rowtype;
@@ -329,7 +329,7 @@ END;
 ```
 
 ## Excepcioness propias
-```
+```sql
 DECLARE
     v_codigo producto.codigo%type := &codigo;
     v_producto producto%rowtype;
@@ -363,7 +363,7 @@ END;
 ```
 
 ## Excepcioness RAISE_APPLICATION_ERROR
-```
+```sql
 DECLARE
     v_codigo producto.codigo%type := &codigo;
     v_producto producto%rowtype;
@@ -397,7 +397,7 @@ END;
 ```
 
 ## Procedimiento
-```
+```sql
 CREATE OR REPLACE PROCEDURE infoProducto(p_codigo producto.codigo%type)
 AS
     v_producto producto%rowtype;
@@ -422,7 +422,7 @@ EXCEPTION
 END;
 ```
 /
-```
+```sql
 DECLARE
     v_codigo producto.codigo%type := &codigo;    
 BEGIN
@@ -430,13 +430,13 @@ BEGIN
 END;
 ```
 /
-```
+```sql
 EXECUTE infoProducto(2);
 EXEC infoProducto(5);
 ```
 
 ## Funcion
-```
+```sql
 CREATE OR REPLACE FUNCTION obtenerProducto(p_codigo producto.codigo%type)
 RETURN producto%rowtype
 AS
@@ -457,7 +457,7 @@ EXCEPTION
 END;
 ```
 /
-```
+```sql
 DECLARE
     v_codigo producto.codigo%type := &codigo;
     v_producto producto%rowtype;
@@ -472,12 +472,12 @@ BEGIN
     END IF;
 END;
 ```
-```
+```sql
 DROP PROCEDURE infoProducto;
 ```
 
 ## Parametro de Entrada y Salida
-```
+```sql
 CREATE OR REPLACE PROCEDURE infoProducto(p_codigo producto.codigo%type, p_producto OUT producto%rowtype)
 AS
 BEGIN
@@ -492,7 +492,7 @@ EXCEPTION
 END;
 ```
 /
-```
+```sql
 DECLARE
     v_codigo producto.codigo%type := &codigo;
     v_producto producto%rowtype;
@@ -507,19 +507,19 @@ BEGIN
     END IF;
 END;
 ```
-```
+```sql
 DROP FUNCTION obtenerProducto;
 ```
 
 ## Paquete
-```
+```sql
 CREATE OR REPLACE PACKAGE productos AS
     PROCEDURE infoProducto(p_codigo producto.codigo%type);
     FUNCTION obtenerProducto(p_codigo producto.codigo%type) RETURN producto%rowtype;
 END;
 ```
 /
-```
+```sql
 CREATE OR REPLACE PACKAGE BODY productos AS
 
     PROCEDURE infoProducto(p_codigo producto.codigo%type)
@@ -562,7 +562,7 @@ CREATE OR REPLACE PACKAGE BODY productos AS
 END;
 ```
 /
-```
+```sql
 DECLARE
     v_codigo producto.codigo%type := &codigo;
     v_producto producto%rowtype;
@@ -581,12 +581,12 @@ BEGIN
     END IF;    
 END;
 ```
-```
+```sql
 DROP PACKAGE productos;
 ```
 
 ## Cursores
-```
+```sql
 DECLARE
     CURSOR c_productos IS
         SELECT * 
@@ -612,7 +612,7 @@ BEGIN
 END;
 ```
 
-```
+```sql
 DECLARE
     CURSOR c_productos IS
         SELECT * 
@@ -658,7 +658,7 @@ BEGIN
 END;
 ```
 
-```
+```sql
 DECLARE
     CURSOR c_productos_fabricante(p_cod_fab NUMBER) IS
         SELECT * 
@@ -686,7 +686,7 @@ END;
 ```
 
 ## Trigger
-```
+```sql
 CREATE OR REPLACE TRIGGER estado_operacion_before
 BEFORE INSERT OR UPDATE OR DELETE ON producto
 BEGIN
@@ -717,7 +717,7 @@ BEGIN
 
 END;
 ```
-```
+```sql
 CREATE OR REPLACE TRIGGER validacion_producto
 BEFORE INSERT OR UPDATE ON producto FOR EACH ROW
 DECLARE
@@ -743,7 +743,7 @@ END;
 INSERT INTO producto (codigo, nombre, precio, codigo_fabricante)
 VALUES (12, 'Nuevo producto', 100, 1);
 ```
-```
+```sql
 CREATE OR REPLACE TRIGGER cambio_fabricante
 BEFORE UPDATE OF codigo_fabricante ON producto FOR EACH ROW
 BEGIN
@@ -766,7 +766,7 @@ DELETE FROM producto WHERE codigo = 12;
 
 ## Stored Procedure
 - Output object
-```
+```sql
 CREATE OR REPLACE TYPE ResultObj AS OBJECT (
     IsSuccess NUMBER(1),
     Message VARCHAR2(255),
@@ -774,7 +774,7 @@ CREATE OR REPLACE TYPE ResultObj AS OBJECT (
 );
 ```
 - SP Insert
-```
+```sql
 CREATE OR REPLACE PROCEDURE sp_hunter_insert(
     p_name IN hunter.name%TYPE,
     p_age IN hunter.age%TYPE,
@@ -822,7 +822,7 @@ BEGIN
 END;
 ```
 - SP Delete
-```
+```sql
 CREATE OR REPLACE PROCEDURE sp_hunter_delete(
     p_id_hunter hunter.id_hunter%TYPE,
     p_result OUT ResultObj
@@ -886,7 +886,7 @@ BEGIN
 END;
 ```
 - SP Update
-```
+```sql
 CREATE OR REPLACE PROCEDURE sp_hunter_update(
     p_id_hunter IN hunter.id_hunter%TYPE,
     p_name IN hunter.name%TYPE,
@@ -943,7 +943,7 @@ BEGIN
 END;
 ```
 - SP Get All
-```
+```sql
 CREATE OR REPLACE PROCEDURE sp_hunter_get_all(
     p_cursor OUT SYS_REFCURSOR,
     p_result OUT ResultObj
@@ -989,7 +989,7 @@ BEGIN
 END;
 ```
 - SP Get By Id
-```
+```sql
 CREATE OR REPLACE PROCEDURE sp_hunter_get_by_id(
     p_id_hunter IN hunter.id_hunter%TYPE,
     p_cursor OUT SYS_REFCURSOR,

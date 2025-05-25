@@ -15,7 +15,7 @@
 ## YAML
 
 ### Basic Structure
-```
+```yml
 name: action name
 
 on: [event o trigger]
@@ -67,7 +67,7 @@ jobs:
 * needs: ejecuta los jobs en serie, si no esta se ejecutan en paralelo
 
 ### main.yml + action.yml
-```
+```yml
 name: Test Composite Action
 
 on: [push]
