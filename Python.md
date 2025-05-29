@@ -1,22 +1,38 @@
-# Python
+# Python 3.12.10 LTS
 
-> [Python](https://www.python.org/)
+[Python](https://www.python.org/)
 
-* Virtual Environment
+- testing
 ```cmd
-pip install virtualenv
-virtualenv -p python3 venv
-.\venv\Scripts\activate
+py --version
 ```
-* list of all dependency
+```cmd
+py -m pip list
+```
+
+- Enviranment
+```cmd
+py -m venv venv
+```
+```cmd
+venv\Scripts\activate
+```
 ```cmd
 pip list
 ```
-* create the requirements file
+
+- Requirements dependency
 ```cmd
-pip freeze > requirements.txt 
+pip freeze > requirements.txt
 ```
-* install all dependency from requirements.txt
 ```cmd
 pip install -r requirements.txt
 ```
+
+- Run Server
+    - http://127.0.0.1:8000/docs
+    - http://127.0.0.1:8000
+```cmd
+python run.py
+```
+
