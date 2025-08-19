@@ -2,6 +2,7 @@
 
 - [.NET](https://github.com/TheNefelin/Docs/blob/main/.NET.md)
 - [.NET Interview](https://github.com/TheNefelin/Docs/blob/main/.NETInterview.md)
+- [Angular](https://github.com/TheNefelin/Docs/blob/main/Angular.md)
 - [AWS](https://github.com/TheNefelin/Docs/blob/main/AWS.md)
 - [Azure](https://github.com/TheNefelin/Docs/blob/main/Azure.md)
 - [Clean Architecture](https://github.com/TheNefelin/Docs/blob/main/CleanArchitecture.md)
