@@ -1,5 +1,7 @@
 # CSS
 
+## Scroll
+
 ```css
 html {
   scroll-behavior: smooth;
@@ -29,6 +31,8 @@ html {
 ```
 
 ---
+
+## Header - Main - Footer
 
 ```html
 <section>
