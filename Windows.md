@@ -1,6 +1,6 @@
 # Windows Comand And Fix
 
-### Get Sistem data
+## Get Sistem data
 
 * CMD
 ```cmd
@@ -13,3 +13,6 @@ systeminfo
 ```cmd
 Get-WmiObject -Class Win32_ComputerSystemProduct
 ```
+
+## Apps
+- **rufus**: images to usb

@@ -48,3 +48,5 @@ section {
   grid-template-rows: auto 1fr auto;
 }
 ```
+
+## Header - Main - Footer (tailwindcss)
