@@ -6,10 +6,10 @@ journalctl -b -1 -p 3
 ```
 
 ## Problema Asus X407UA se congela con Linux
-- **Causa**:
-- Correccion
+* -b -1: Significa "mira el registro de la sesión anterior" (la que se bloqueó).
+* -p 3: Filtra solo los errores graves (Errors).
 ```sh
-
+journalctl -b -1 -p 3
 ```
 
 ## Instalar paquetes .xz
