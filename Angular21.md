@@ -66,9 +66,9 @@ export class ApiResponseService<R,T> {
 }
 ```
 
-# Angular 21 — Prácticas Modernas
+# Angular 21 — Guía Completa de Desarrollo
 
-Guía práctica de las características modernas de Angular. Cada sección explica **qué es**, **por qué existe**, **todos sus parámetros y opciones**, y **cómo implementarlo correctamente**.
+Guía práctica exhaustiva de Angular 21. Cubre desde las señales hasta guards, interceptores y view transitions. Cada sección explica **qué es**, **por qué existe**, **todas sus firmas y opciones**, y **cómo implementarlo correctamente**.
 
 ---
 
@@ -80,16 +80,23 @@ Guía práctica de las características modernas de Angular. Cada sección expli
 4. [De Observable a Señal — `toSignal()`](#4-de-observable-a-señal--tosignal)
 5. [Inyección con `inject()`](#5-inyección-con-inject)
 6. [Control de Flujo en Template (`@if`, `@for`, `@switch`)](#6-control-de-flujo-en-template-if-for-switch)
-7. [Estrategias de Formularios — Comparación Profunda](#7-estrategias-de-formularios--comparación-profunda)
-   - 7.1 [Estrategia A: Señales + evento nativo (RECOMENDADA)](#71-estrategia-a-señales--evento-nativo-recomendada)
-   - 7.2 [Estrategia B: Formularios Reactivos (`ReactiveFormsModule`)](#72-estrategia-b-formularios-reactivos-reactiveformsmodule)
-   - 7.3 [Estrategia C: Formularios Template (`FormsModule`)](#73-estrategia-c-formularios-template-formsmodule)
-   - 7.4 [Tabla de Decisión](#74-tabla-de-decisión)
-8. [Patrones de Comunicación con el Backend](#8-patrones-de-comunicación-con-el-backend)
-9. [Estructura Recomendada de un Componente Moderno](#9-estructura-recomendada-de-un-componente-moderno)
+7. [Enrutamiento Moderno — `provideRouter` y `Routes`](#7-enrutamiento-moderno--providerouter-y-routes)
+8. [Guards Funcionales](#8-guards-funcionales)
+9. [Interceptores Funcionales](#9-interceptores-funcionales)
+10. [`HttpClient` Moderno — `provideHttpClient`](#10-httpclient-moderno--providehttpclient)
+11. [View Transitions — Animaciones entre Rutas](#11-view-transitions--animaciones-entre-rutas)
+12. [Detección de Cambios — `OnPush`](#12-detección-de-cambios--onpush)
+13. [Estrategias de Formularios — Comparación Profunda](#13-estrategias-de-formularios--comparación-profunda)
+    - 13.1 [Estrategia A: Señales + evento nativo ⭐ RECOMENDADA](#131-estrategia-a-señales--evento-nativo-recomendada)
+    - 13.2 [Estrategia B: Formularios Reactivos](#132-estrategia-b-formularios-reactivos-reactiveformsmodule)
+    - 13.3 [Estrategia C: Formularios Template](#133-estrategia-c-formularios-template-formsmodule)
+    - 13.4 [Tabla de Decisión](#134-tabla-de-decisión)
+14. [Patrones de Comunicación con el Backend](#14-patrones-de-comunicación-con-el-backend)
+15. [Estructura de `app.config.ts` — La configuración completa](#15-estructura-de-appconfigts--la-configuración-completa)
+16. [Estructura Recomendada de un Componente Moderno](#16-estructura-recomendada-de-un-componente-moderno)
+17. [Tabla de Importaciones — Referencia Rápida](#17-tabla-de-importaciones--referencia-rápida)
 
 ---
-
 ## 1. Componentes Standalone
 
 ### ¿Qué es?
@@ -402,17 +409,6 @@ export class MiComponente {
     this.datos = toSignal(
       this.miServicio.getAll(),
       { injector: this.injector }  // ← Necesario fuera de la zona de inicialización
-    );
-  }
-}
-```
-
-### Reglas clave
-
-- Se suscribe automáticamente al crear el componente y se desustacribe al destruirlo.
-- Si no provienes `initialValue`, el tipo incluye `| undefined`.
-- **No es para peticiones que dispara el usuario** (como POST/PUT). Para esos, usa `.subscribe()` directamente.
-- El `catchError` dentro del pipe es esencial: si el Observable falla sin catch, la señal queda en estado de error y no se recupera.
 
 ---
 
@@ -586,7 +582,881 @@ Son directivas de control de flujo **nativas del lenguaje del template** de Angu
 
 ---
 
-## 7. Estrategias de Formularios — Comparación Profunda
+## 7. Enrutamiento Moderno — `provideRouter` y `Routes`
+
+### ¿Qué es?
+
+El enrutamiento en Angular 21 se configura enteramente con funciones, sin necesidad de `RouterModule.forRoot()`. Todo vive en un archivo `app.routes.ts` y se conecta mediante `provideRouter()` en `app.config.ts`.
+
+### Firma de la configuración
+
+```typescript
+import { provideRouter } from '@angular/router';
+
+// En app.config.ts
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(
+      routes,                            // Tu array de Routes
+      withViewTransitions(),             // Transiciones visuales (opcional)
+      withPreloading(PreloadAllModules), // Precargar rutas lazy (opcional)
+      withDebugTracing(),                // Logs de navegación en consola (desarrollo)
+    ),
+  ],
+};
+```
+
+### Firma de una ruta (`Route`)
+
+```typescript
+interface Route {
+  path?: string;                          // Segmento de URL. '' = ruta raíz.
+  pathMatch?: 'full' | 'prefix';          // 'full' = el path debe coincidir completamente.
+  component?: Type<any>;                  // Componente a mostrar (carga inmediata).
+  loadComponent?: () => Promise<Type>;    // Componente con lazy loading.
+  loadChildren?: () => Promise<Routes>;   // Sub-rutas con lazy loading.
+  children?: Routes;                      // Sub-rutas (sin lazy loading).
+  redirectTo?: string | RedirectFunction; // Redirección automática.
+  canActivate?: GuardFn[];                // Guards antes de entrar a la ruta.
+  canActivateChild?: GuardFn[];           // Guards para las sub-rutas.
+  canDeactivate?: GuardFn[];              // Guards antes de salir de la ruta.
+  canMatch?: GuardFn[];                   // Guards antes de que la ruta haga match.
+  resolve?: Record<string, ResolveFn>;    // Resolvers: cargar datos antes de activar.
+  data?: any;                             // Datos estáticos accesibles desde ActivatedRoute.
+  providers?: Provider[];                 // Servicios locales al scope de esta ruta.
+  title?: string | TitleFn;               // Título de la pestaña del browser.
+  outlet?: string;                        // Named outlet (por defecto: 'primary').
+  matcher?: UrlMatcher;                   // Función custom para hacer match de URL.
+}
+```
+
+### Estructura de rutas completa
+
+```typescript
+// app.routes.ts
+import { Routes } from '@angular/router';
+import { HomeComponent } from './home/home.component';
+
+export const routes: Routes = [
+  // Ruta raíz con redirección
+  {
+    path: '',
+    redirectTo: 'home',
+    pathMatch: 'full',
+  },
+
+  // Carga inmediata (eager) — solo para rutas que siempre se necesitan
+  {
+    path: 'home',
+    component: HomeComponent,
+    title: 'Inicio',
+  },
+
+  // Lazy loading de un solo componente
+  {
+    path: 'login',
+    loadComponent: () => import('./login/login.component').then(m => m.LoginComponent),
+    title: 'Iniciar sesión',
+  },
+
+  // Lazy loading de un grupo de rutas (sub-rutas en archivo separado)
+  {
+    path: 'admin',
+    canActivate: [authGuard, adminGuard],
+    loadChildren: () => import('./admin/admin.routes').then(m => m.adminRoutes),
+  },
+
+  // Ruta con resolver y título dinámico
+  {
+    path: 'usuario/:id',
+    loadComponent: () => import('./usuario/usuario.component').then(m => m.UsuarioComponent),
+    resolve: {
+      usuario: usuarioResolver,
+    },
+    title: (route) => `Usuario ${route.paramMap.get('id')}`,
+  },
+
+  // Ruta con sub-rutas (children) y <router-outlet> interno
+  {
+    path: 'settings',
+    loadComponent: () => import('./settings/settings.component').then(m => m.SettingsComponent),
+    children: [
+      { path: '',            redirectTo: 'perfil', pathMatch: 'full' },
+      { path: 'perfil',      loadComponent: () => import('./settings/perfil.component').then(m => m.PerfilComponent) },
+      { path: 'seguridad',   loadComponent: () => import('./settings/seguridad.component').then(m => m.SeguridadComponent) },
+    ],
+  },
+
+  // Catch-all: ruta no encontrada (SIEMPRE al final)
+  {
+    path: '**',
+    loadComponent: () => import('./not-found/not-found.component').then(m => m.NotFoundComponent),
+    title: 'Página no encontrada',
+  },
+];
+```
+
+### Lazy loading: `loadComponent` vs `loadChildren`
+
+| Usa | Cuando |
+|---|---|
+| `loadComponent` | Un solo componente que se carga por sí mismo |
+| `loadChildren` | Un grupo de sub-rutas que viven en un archivo `.routes.ts` separado |
+| `component` (eager) | Solo para la ruta raíz o componentes que siempre se necesitan |
+
+### Título dinámico de la pestaña
+
+```typescript
+// Título estático
+{ path: 'login', title: 'Iniciar sesión', ... }
+
+// Título dinámico basado en parámetros de ruta
+{
+  path: 'usuario/:id',
+  title: (route: MaybeActivatedRouteSnapshot) => {
+    return `Perfil de usuario ${route.paramMap.get('id')}`;
+  },
+}
+```
+
+### Cómo leer parámetros de ruta en el componente
+
+```typescript
+import { inject } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { toSignal } from '@angular/core';
+import { map } from 'rxjs';
+
+export class UsuarioComponent {
+  private readonly route = inject(ActivatedRoute);
+
+  // Parámetro como señal (recomendado)
+  readonly usuarioId = toSignal(
+    this.route.paramMap.pipe(map(params => params.get('id')!))
+  );
+  // En el template: {{ usuarioId() }}
+}
+```
+
+### Reglas clave
+
+- La ruta `**` (catch-all) **siempre debe ser la última** en el array.
+- `pathMatch: 'full'` es necesario cuando el `path` es `''` y quieres coincidir solo cuando la URL está exactamente vacía.
+- No importes el componente con `import` estático arriba del archivo si usas `loadComponent`. Eso lo hace eager.
+- `providers` en una ruta crea un scope de inyección local solo para esa ruta y sus hijos.
+
+---
+
+## 8. Guards Funcionales
+
+### ¿Qué es?
+
+Los guards son funciones que se ejecutan antes de que Angular complete una navegación. Controlan si el usuario puede entrar, salir, o acceder a rutas hijas. En Angular moderno los guards son **funciones puras**, nunca clases.
+
+### Tipos de guards y sus firmas
+
+```typescript
+// ─── canActivate: ¿puede el usuario ENTRAR a esta ruta? ───
+type CanActivateFn = (
+  route: ActivatedRouteSnapshot,
+  state: RouterStateSnapshot
+) => MaybeAsync<GuardResult>;
+
+// ─── canActivateChild: ¿puede entrar a las SUB-RUTAS? ───
+type CanActivateChildFn = (
+  childRoute: ActivatedRouteSnapshot,
+  state: RouterStateSnapshot
+) => MaybeAsync<GuardResult>;
+
+// ─── canDeactivate: ¿puede el usuario SALIR de esta ruta? ───
+type CanDeactivateFn<T> = (
+  component: T,                          // El componente que está actualmente activo
+  currentRoute: ActivatedRouteSnapshot,
+  currentState: RouterStateSnapshot,
+  nextState?: RouterStateSnapshot        // La ruta hacia donde intenta ir
+) => MaybeAsync<GuardResult>;
+
+// ─── canMatch: ¿esta ruta hace match? (se ejecuta ANTES del lazy load) ───
+type CanMatchFn = (
+  route: Route,
+  segments: UrlSegment[]
+) => MaybeAsync<GuardResult>;
+
+// ─── resolve: cargar datos ANTES de activar la ruta ───
+type ResolveFn<T> = (
+  route: ActivatedRouteSnapshot,
+  state: RouterStateSnapshot
+) => MaybeAsync<T>;
+
+// GuardResult — los valores que puede retornar un guard:
+type GuardResult = boolean | UrlTree | RedirectCommand;
+// true              → permite la navegación
+// false             → bloquea la navegación
+// UrlTree           → bloquea y redirige a otra URL
+// RedirectCommand   → bloquea y redirige (versión moderna de UrlTree)
+```
+
+### Guard de autenticación (el más común)
+
+```typescript
+// guards/auth.guard.ts
+import { inject } from '@angular/core';
+import { CanActivateFn, Router } from '@angular/router';
+import { AuthService } from '../services/auth.service';
+
+export const authGuard: CanActivateFn = (route, state) => {
+  const authService = inject(AuthService);
+  const router      = inject(Router);
+
+  if (authService.isAuthenticated()) {
+    return true;
+  }
+
+  // Redirige al login y guarda la URL original para volver después
+  return router.createUrlTree(['/login'], {
+    queryParams: { returnUrl: state.url }
+  });
+};
+```
+
+### Guard de rol (autorización con parámetros)
+
+```typescript
+// guards/role.guard.ts
+import { inject } from '@angular/core';
+import { CanActivateFn, Router } from '@angular/router';
+import { AuthService } from '../services/auth.service';
+
+// Higher-order function: una función que RETORNA un guard con los roles configurados
+export const roleGuard = (...roles: string[]): CanActivateFn => {
+  return (route, state) => {
+    const authService = inject(AuthService);
+    const router      = inject(Router);
+
+    const hasRole = roles.some(role => authService.hasRole(role));
+    return hasRole || router.createUrlTree(['/acceso-denegado']);
+  };
+};
+
+// Uso en las rutas:
+// canActivate: [authGuard, roleGuard('admin', 'superadmin')]
+```
+
+### Guard de cambios no guardados (`canDeactivate`)
+
+```typescript
+// guards/unsaved-changes.guard.ts
+import { CanDeactivateFn } from '@angular/router';
+
+// Interfaz que implementa el componente que tiene datos sin guardar
+export interface HasUnsavedChanges {
+  hasUnsavedChanges(): boolean;
+}
+
+export const unsavedChangesGuard: CanDeactivateFn<HasUnsavedChanges> = (component) => {
+  if (component && component.hasUnsavedChanges()) {
+    return window.confirm('Tienes cambios sin guardar. ¿Quieres salir?');
+  }
+  return true;
+};
+```
+
+```typescript
+// En el componente que usa este guard:
+export class UrlFormPage implements HasUnsavedChanges {
+  readonly formData    = signal<Partial<UrlModel>>({ name: '', link: '' });
+  private readonly initialData = { name: '', link: '' };
+
+  hasUnsavedChanges(): boolean {
+    return this.formData().name !== this.initialData.name ||
+           this.formData().link !== this.initialData.link;
+  }
+}
+```
+
+```typescript
+// En la ruta:
+{
+  path: 'url/form',
+  loadComponent: () => import('./url-form-page.component').then(m => m.UrlFormPage),
+  canDeactivate: [unsavedChangesGuard],
+}
+```
+
+### Resolver: cargar datos antes de mostrar la ruta
+
+```typescript
+// resolvers/usuario.resolver.ts
+import { inject } from '@angular/core';
+import { ResolveFn } from '@angular/router';
+import { UsuarioService } from '../services/usuario.service';
+import { UsuarioModel } from '../models/usuario.model';
+
+export const usuarioResolver: ResolveFn<UsuarioModel> = (route, state) => {
+  const usuarioService = inject(UsuarioService);
+  const id = route.paramMap.get('id')!;
+  return usuarioService.getById(id);  // Puede ser Observable, Promise, o valor directo
+};
+```
+
+```typescript
+// En la ruta:
+{
+  path: 'usuario/:id',
+  loadComponent: () => import('./usuario.component').then(m => m.UsuarioComponent),
+  resolve: { usuario: usuarioResolver },
+}
+
+// En el componente, leer el dato resuelto:
+export class UsuarioComponent {
+  private readonly route = inject(ActivatedRoute);
+
+  readonly usuario = toSignal(
+    this.route.data.pipe(map(data => data['usuario'] as UsuarioModel))
+  );
+}
+```
+
+### Orden de ejecución de los guards
+
+```
+Usuario hace clic en un enlace
+    ↓
+canMatch          → ¿esta ruta hace match? (antes del lazy load)
+    ↓
+canActivate       → ¿puede entrar? (auth, roles)
+    ↓
+canActivateChild  → ¿puede entrar a las sub-rutas?
+    ↓
+resolve           → cargar datos necesarios
+    ↓
+Componente se activa y se muestra
+```
+
+Si cualquier guard en la cadena retorna `false` o un `UrlTree`, los siguientes **no se ejecutan**.
+
+### Combinar múltiples guards
+
+```typescript
+{
+  path: 'admin/dashboard',
+  canActivate: [
+    authGuard,              // 1° ejecuta: ¿está autenticado?
+    roleGuard('admin'),     // 2° ejecuta: ¿tiene rol admin?
+  ],
+  loadComponent: () => import('./admin-dashboard.component').then(m => m.AdminDashboardComponent),
+}
+```
+
+### Reglas clave
+
+- Siempre usa **funciones**. Las clases con `implements CanActivate` están deprecadas.
+- Para redirigir, retorna `router.createUrlTree([...])`. No uses `router.navigate()` dentro del guard.
+- Un guard puede retornar `boolean`, `UrlTree`, `Promise`, u `Observable` de cualquiera de los anteriores.
+- `canMatch` se ejecuta antes del lazy loading. Úsalo si quieres evitar descargar un chunk innecesario.
+
+---
+
+## 9. Interceptores Funcionales
+
+### ¿Qué es?
+
+Los interceptores son **middleware** para peticiones HTTP. Se ejecutan automáticamente en cada petición hecha con `HttpClient`. Son la forma de añadir headers de autenticación, hacer logging, manejar errores globales, o reintentar peticiones sin repetir código en cada servicio.
+
+### Firma
+
+```typescript
+import { HttpInterceptorFn, HttpRequest, HttpHandlerFn } from '@angular/common/http';
+
+// Firma de un interceptor funcional
+type HttpInterceptorFn = (
+  req: HttpRequest<unknown>,   // La petición actual. Es INMUTABLE.
+  next: HttpHandlerFn          // Función que pasa la petición al siguiente interceptor o al backend
+) => Observable<HttpEvent<unknown>>;
+```
+
+### Cómo fluyen las peticiones
+
+```
+Petición sale del servicio (HttpClient)
+    ↓
+Interceptor 1 (logging)      ← puede leer la petición
+    ↓
+Interceptor 2 (auth)         ← puede añadir headers (clonando)
+    ↓
+Interceptor 3 (error)        ← puede transformar la respuesta
+    ↓
+Backend (petición real al servidor)
+    ↓
+La respuesta vuelve por la cadena en ORDEN INVERSO
+```
+
+### Cómo registrar interceptores
+
+```typescript
+// app.config.ts
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { authInterceptor }    from './interceptors/auth.interceptor';
+import { loggingInterceptor } from './interceptors/logging.interceptor';
+import { errorInterceptor }   from './interceptors/error.interceptor';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideHttpClient(
+      withInterceptors([
+        loggingInterceptor,   // Se ejecuta primero
+        authInterceptor,      // Se ejecuta segundo
+        errorInterceptor,     // Se ejecuta tercero
+      ])
+    ),
+  ],
+};
+```
+
+### Interceptor de autenticación
+
+```typescript
+// interceptors/auth.interceptor.ts
+import { HttpInterceptorFn } from '@angular/common/http';
+import { inject } from '@angular/core';
+import { AuthService } from '../services/auth.service';
+
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const authService = inject(AuthService);
+  const token = authService.getToken();
+
+  if (token) {
+    // req es inmutable. Siempre .clone() para modificar.
+    const authReq = req.clone({
+      headers: req.headers.set('Authorization', `Bearer ${token}`)
+    });
+    return next(authReq);
+  }
+
+  return next(req);
+};
+```
+
+### Interceptor de logging
+
+```typescript
+// interceptors/logging.interceptor.ts
+import { HttpInterceptorFn, HttpEventType } from '@angular/common/http';
+import { tap } from 'rxjs';
+
+export const loggingInterceptor: HttpInterceptorFn = (req, next) => {
+  console.log(`[LOG] ${req.method} ${req.url}`);
+
+  return next(req).pipe(
+    tap({
+      next: (event) => {
+        if (event.type === HttpEventType.Response) {
+          console.log(`[LOG] ${req.url} → Status: ${event.status}`);
+        }
+      },
+      error: (err) => {
+        console.error(`[LOG] ${req.url} → Error:`, err);
+      },
+    })
+  );
+};
+```
+
+### Interceptor de manejo de errores globales
+
+```typescript
+// interceptors/error.interceptor.ts
+import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
+import { inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { catchError } from 'rxjs';
+import { throwError } from 'rxjs';
+
+export const errorInterceptor: HttpInterceptorFn = (req, next) => {
+  return next(req).pipe(
+    catchError((error: HttpErrorResponse) => {
+      const router = inject(Router);
+
+      switch (error.status) {
+        case 401:
+          router.navigate(['/login']);          // Token expirado
+          break;
+        case 403:
+          router.navigate(['/acceso-denegado']); // Sin permiso
+          break;
+        case 404:
+          router.navigate(['/no-encontrado']);
+          break;
+        case 500:
+          router.navigate(['/error']);          // Error del servidor
+          break;
+      }
+
+      return throwError(() => error);  // Re-lanza para que el servicio también lo reciba
+    })
+  );
+};
+```
+
+### Interceptor configurable (higher-order function)
+
+```typescript
+// interceptors/retry.interceptor.ts
+import { HttpInterceptorFn } from '@angular/common/http';
+import { retry } from 'rxjs';
+
+export const retryInterceptor = (maxRetries: number = 3): HttpInterceptorFn => {
+  return (req, next) => {
+    // Solo reintentar GETs (los demás no son idempotentes)
+    if (req.method === 'GET') {
+      return next(req).pipe(retry(maxRetries));
+    }
+    return next(req);
+  };
+};
+
+// Uso: withInterceptors([retryInterceptor(5)])
+```
+
+### Interceptor con contexto custom (`HttpContext`)
+
+Si necesitas que un interceptor sepa algo sobre una petición específica, sin tocar URL ni headers, usas `HttpContext`:
+
+```typescript
+// Definis un token
+import { HttpContextToken } from '@angular/common/http';
+export const SKIP_AUTH = new HttpContextToken<boolean>(() => false);
+
+// En el servicio, cuando haces la petición que NO necesita auth:
+this.http.get('/api/publico', {
+  context: new HttpContext().set(SKIP_AUTH, true)
+});
+
+// En el interceptor, verificas:
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  if (req.context.get(SKIP_AUTH)) {
+    return next(req);  // No añadir token
+  }
+  // ... añadir token como antes
+};
+```
+
+### Reglas clave
+
+- Los interceptores se ejecutan en el **orden exacto** de `withInterceptors([...])`.
+- **Nunca** mutés la petición directamente. Siempre usa `req.clone({...})`.
+- Si necesitas un servicio dentro del interceptor, usas `inject()`.
+- `next(req)` retorna un `Observable`. Si no lo retornas, la petición no se ejecuta.
+- Para interceptores configurables, usa higher-order functions (función que retorna función).
+
+---
+
+## 10. `HttpClient` Moderno — `provideHttpClient`
+
+### ¿Qué es?
+
+`provideHttpClient()` configura el cliente HTTP de Angular. Reemplaza completamente `HttpClientModule`.
+
+### Firma completa
+
+```typescript
+import { provideHttpClient } from '@angular/common/http';
+
+provideHttpClient(...features: HttpFeature[]): Provider[]
+
+// Features disponibles:
+withInterceptors(fns)          // Interceptores funcionales ⭐ recomendado
+withInterceptorsFromDi()       // Interceptores class-based (legacy)
+withFetch()                    // Usar fetch API en lugar de XMLHttpRequest
+withJsonpSupport()             // Habilita .jsonp()
+withNoXsrfProtection()         // Desactiva protección XSRF
+withXsrfConfiguration({...})   // XSRF custom
+withRequestsMadeViaParent()    // Pasa peticiones al HttpClient del injector padre
+```
+
+### Servicio HTTP típico
+
+```typescript
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+
+@Injectable({ providedIn: 'root' })
+export class UrlService {
+  private readonly http    = inject(HttpClient);
+  private readonly API_URL = '/api/urls';
+
+  getAll(): Observable<ApiResponseModel<UrlModel[]>> {
+    return this.http.get<ApiResponseModel<UrlModel[]>>(this.API_URL);
+  }
+
+  getById(id: number): Observable<ApiResponseModel<UrlModel>> {
+    return this.http.get<ApiResponseModel<UrlModel>>(`${this.API_URL}/${id}`);
+  }
+
+  create(url: UrlModel): Observable<ApiResponseModel<UrlModel>> {
+    return this.http.post<ApiResponseModel<UrlModel>>(this.API_URL, url);
+  }
+
+  update(url: UrlModel): Observable<ApiResponseModel<UrlModel>> {
+    return this.http.put<ApiResponseModel<UrlModel>>(`${this.API_URL}/${url.id}`, url);
+  }
+
+  delete(id: number): Observable<ApiResponseModel<void>> {
+    return this.http.delete<ApiResponseModel<void>>(`${this.API_URL}/${id}`);
+  }
+}
+```
+
+### Reglas clave
+
+- Nunca importes `HttpClientModule`. Solo usa `provideHttpClient()`.
+- Los servicios con `providedIn: 'root'` son singletons automáticamente.
+- `HttpClient` retorna `Observable`. Necesitas `.subscribe()` o `toSignal()` para consumirlo.
+
+---
+
+## 11. View Transitions — Animaciones entre Rutas
+
+### ¿Qué es?
+
+View Transitions es una API nativa del browser que crea animaciones suaves cuando el contenido de la página cambia. Angular integró esta API en el router para que las transiciones entre rutas sean automáticas.
+
+### Cómo funciona internamente
+
+```
+1. El browser toma un "screenshot" de la página actual
+2. Angular ejecuta el cambio de ruta (actualiza el DOM)
+3. El browser toma un "screenshot" de la nueva página
+4. El browser anima la transición entre ambos screenshots
+```
+
+### Firma
+
+```typescript
+import { withViewTransitions } from '@angular/router';
+
+// Sin opciones — activa cross-fade automático
+withViewTransitions()
+
+// Con opciones
+withViewTransitions({
+  skipInitialTransition?: boolean,    // No animar la primera carga de la app
+  onViewTransitionCreated?: (info: ViewTransitionInfo) => void,  // Callback para customizar
+})
+
+// ViewTransitionInfo:
+interface ViewTransitionInfo {
+  transition: ViewTransition;          // Objeto ViewTransition del browser
+  from: ActivatedRouteSnapshot;        // Ruta desde donde se navega
+  to: ActivatedRouteSnapshot;          // Ruta hacia donde se navega
+}
+```
+
+### Activación básica (cross-fade automático)
+
+```typescript
+// app.config.ts
+import { provideRouter, withViewTransitions } from '@angular/router';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(routes, withViewTransitions()),
+  ],
+};
+```
+
+Con solo esta línea, todas las navegaciones tienen un cross-fade automático. Sin escribir CSS.
+
+### Customizar la animación globalmente
+
+Las animaciones deben definirse en estilos **globales** (nunca en estilos del componente, el encapsulamiento las haría invisibles).
+
+```css
+/* styles.css — GLOBAL */
+
+/* Animación de salida */
+::view-transition-old(root) {
+  animation: 150ms cubic-bezier(0.4, 0, 1, 1) both fade-out;
+}
+
+/* Animación de entrada */
+::view-transition-new(root) {
+  animation: 300ms cubic-bezier(0, 0, 0.2, 1) both fade-in;
+}
+
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+```
+
+### Animación por elemento específico (`view-transition-name`)
+
+Si quieres que un elemento anime de forma independiente al resto (por ejemplo, una imagen que se mueve de una lista a un detalle):
+
+```html
+<!-- En la LISTA de productos -->
+@for (producto of productos(); track producto.id) {
+  <div class="card">
+    <img
+      [src]="producto.imagen"
+      [style.view-transition-name]="'producto-img-' + producto.id"
+    />
+    <h3>{{ producto.nombre }}</h3>
+  </div>
+}
+```
+
+```html
+<!-- En la PÁGINA DE DETALLE del producto -->
+<div class="detalle">
+  <img
+    [src]="producto().imagen"
+    [style.view-transition-name]="'producto-img-' + producto().id"
+  />
+  <h1>{{ producto().nombre }}</h1>
+</div>
+```
+
+El browser hace match automáticamente entre los elementos que comparten el mismo `view-transition-name` y anima la transición entre ellos.
+
+```css
+/* styles.css — Customizar la animación de ese elemento específico */
+::view-transition-group(producto-img-*) {
+  animation-duration: 400ms;
+}
+```
+
+### Saltar transiciones en casos específicos
+
+```typescript
+// app.config.ts
+import { inject } from '@angular/core';
+import { provideRouter, withViewTransitions, Router, isActive } from '@angular/router';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(routes, withViewTransitions({
+      skipInitialTransition: true,
+
+      onViewTransitionCreated: ({ transition }) => {
+        const router = inject(Router);
+        const targetUrl = router.currentNavigation()!.finalUrl!;
+
+        // Si solo cambian query params o el fragment, no animar
+        const config = {
+          paths: 'exact',
+          matrixParams: 'exact',
+          fragment: 'ignored',
+          queryParams: 'ignored',
+        };
+
+        if (isActive(targetUrl, router, config)()) {
+          transition.skipTransition();
+        }
+      },
+    })),
+  ],
+};
+```
+
+### Compatibilidad
+
+Si el browser no soporta View Transitions, Angular hace el cambio de ruta sin animación automáticamente. No necesitas manejar esto.
+
+| Browser | Soporte |
+|---|---|
+| Chrome 111+ | ✅ |
+| Edge 111+ | ✅ |
+| Safari 18+ | ✅ |
+| Firefox 134+ | ✅ |
+
+### Reglas clave
+
+- Las animaciones van en estilos **globales**, nunca en estilos del componente.
+- `view-transition-name` debe ser **único** por página. En bucles, genera nombres dinámicos con el ID.
+- `skipInitialTransition: true` es recomendado para no animar la primera carga.
+- Es **developer preview**. Funciona en producción pero el API puede evolucionar.
+
+---
+
+## 12. Detección de Cambios — `OnPush`
+
+### ¿Qué es?
+
+Por defecto, Angular verifica si el template necesita actualizarse en cada evento del DOM. Con `OnPush`, solo verifica cuando sus **inputs cambian de referencia**, cuando una **señal que lee cambia**, o cuando un **evento interno** del componente se dispara.
+
+### Firma
+
+```typescript
+import { Component, ChangeDetectionStrategy } from '@angular/core';
+
+@Component({
+  selector: 'app-producto-card',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  // ...
+})
+export class ProductoCardComponent { }
+```
+
+### Cuándo Angular actualiza un componente `OnPush`
+
+```
+✅ SE actualiza cuando:
+  → Un @Input() / input() recibe un valor con referencia diferente
+  → Una señal que el template lee cambia de valor
+  → Un evento del DOM se dispara desde dentro del componente (click, input, etc.)
+  → Se usa markForCheck() manualmente
+
+❌ NO se actualiza cuando:
+  → Un objeto mutable dentro de un @Input() se modifica sin cambiar la referencia
+  → Un Observable emite pero nadie lo convierte en señal ni usa async pipe
+  → Un setTimeout cambia datos sin usar señales
+```
+
+### Ejemplo correcto con `OnPush` + señales
+
+```typescript
+import { Component, input, ChangeDetectionStrategy } from '@angular/core';
+
+@Component({
+  selector: 'app-producto-card',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <h3>{{ producto().nombre }}</h3>
+    <p>\${{ producto().precio }}</p>
+  `,
+})
+export class ProductoCardComponent {
+  // input() como señal — Angular sabe rastrearlo automáticamente
+  readonly producto = input<ProductoModel>();
+}
+```
+
+### Reglas clave
+
+- Con señales, `OnPush` es la estrategia natural y la más performante.
+- Si algo no se actualiza con `OnPush`, revisa que estés usando señales o que los inputs cambien de referencia.
+- Úsalo **siempre** cuando puedas. Es la recomendación de Angular para producción.
+    );
+  }
+}
+```
+
+### Reglas clave
+
+- Se suscribe automáticamente al crear el componente y se desustacribe al destruirlo.
+- Si no provienes `initialValue`, el tipo incluye `| undefined`.
+- **No es para peticiones que dispara el usuario** (como POST/PUT). Para esos, usa `.subscribe()` directamente.
+- El `catchError` dentro del pipe es esencial: si el Observable falla sin catch, la señal queda en estado de error y no se recupera.
+
+---
+
+## 13. Estrategias de Formularios — Comparación Profunda
 
 Esta es la sección más importante para decidir cómo construir formularios en Angular 21. Hay tres estrategias reales. Cada una se explica completa, con código de ejemplo del **mismo formulario** implementado de las tres formas, para que la comparación sea directa.
 
@@ -594,7 +1464,7 @@ El formulario de ejemplo en las tres estrategias es idéntico: nombre, enlace, g
 
 ---
 
-### 7.1 Estrategia A: Señales + evento nativo ⭐ RECOMENDADA
+### 13.1 Estrategia A: Señales + evento nativo ⭐ RECOMENDADA
 
 #### ¿Cuándo usar esta estrategia?
 
@@ -810,7 +1680,7 @@ export class UrlFormPage {
 
 ---
 
-### 7.2 Estrategia B: Formularios Reactivos (`ReactiveFormsModule`)
+### 13.2 Estrategia B: Formularios Reactivos (`ReactiveFormsModule`)
 
 #### ¿Cuándo usar esta estrategia?
 
@@ -1025,7 +1895,7 @@ export class UrlFormPage implements OnInit {
 
 ---
 
-### 7.3 Estrategia C: Formularios Template (`FormsModule`)
+### 13.3 Estrategia C: Formularios Template (`FormsModule`)
 
 #### ¿Cuándo usar esta estrategia?
 
@@ -1212,7 +2082,7 @@ export class UrlFormPage {
 
 ---
 
-### 7.4 Tabla de Decisión
+### 13.4 Tabla de Decisión
 
 | Criterio | A: Señales ⭐ | B: Reactive | C: Template |
 |---|---|---|---|
@@ -1227,9 +2097,8 @@ export class UrlFormPage {
 | Alineación con Angular 21 | ✅ Máxima | Media | Baja |
 | Recomendado para | 80% de los formularios | Formularios complejos con validación | Legacy / migración |
 
----
 
-## 8. Patrones de Comunicación con el Backend
+## 14. Patrones de Comunicación con el Backend
 
 ### Crear vs Actualizar según el modo
 
@@ -1283,9 +2152,69 @@ function getUrlFromHistoryState(): UrlUrlgrpModel | null {
 
 Este patrón evita una petición HTTP extra para obtener los datos del elemento que se edita. Los datos ya viajaron en la navegación.
 
+
 ---
 
-## 9. Estructura Recomendada de un Componente Moderno
+## 15. Estructura de `app.config.ts` — La configuración completa
+
+Este archivo es el centro de configuración de la aplicación. Todo lo que necesitas para que Angular funcione se registra aquí.
+
+```typescript
+// app.config.ts
+import { ApplicationConfig, inject } from '@angular/core';
+import { provideRouter, withViewTransitions, withPreloading, PreloadAllModules } from '@angular/router';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+
+// Rutas
+import { routes } from './app.routes';
+
+// Interceptores
+import { authInterceptor }    from './interceptors/auth.interceptor';
+import { loggingInterceptor } from './interceptors/logging.interceptor';
+import { errorInterceptor }   from './interceptors/error.interceptor';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+
+    // ─── 1. Router ────────────────────────────────────────
+    provideRouter(
+      routes,
+      withViewTransitions({
+        skipInitialTransition: true,     // No animar la primera carga
+      }),
+      withPreloading(PreloadAllModules), // Precargar rutas lazy en segundo plano
+      // withDebugTracing(),             // Descomentar en desarrollo para logs de navegación
+    ),
+
+    // ─── 2. HttpClient + Interceptores ────────────────────
+    provideHttpClient(
+      withInterceptors([
+        loggingInterceptor,              // Primero: logging
+        authInterceptor,                 // Segundo: añadir token
+        errorInterceptor,                // Tercero: manejar errores globales
+      ])
+    ),
+
+    // ─── 3. Otros providers globales ──────────────────────
+    // provideAnimations(),              // Si usas animaciones de Angular
+    // provideStore(),                   // Si usas NgRx
+  ],
+};
+```
+
+### Qué va en `app.config.ts` vs qué va en las rutas
+
+| Configuración | Dónde |
+|---|---|
+| `provideRouter` | `app.config.ts` |
+| `provideHttpClient` + interceptores | `app.config.ts` |
+| Guards de una ruta específica | En la definición de esa ruta en `app.routes.ts` |
+| Servicios globales (`providedIn: 'root'`) | No necesitan ir en ningún lado, se registran solos |
+| Servicios locales a una sección | En el `providers` de la ruta que los necesita |
+
+---
+
+## 16. Estructura Recomendada de un Componente Moderno
 
 Este es el orden y la organización que se recomienda mantener en todos los componentes.
 
@@ -1297,6 +2226,7 @@ import { toSignal } from '@angular/core';
   selector: 'app-mi-componente',
   imports: [ /* solo lo necesario */ ],
   templateUrl: './mi-componente.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,  // Siempre cuando sea posible
 })
 export class MiComponente {
 
@@ -1345,9 +2275,9 @@ export class MiComponente {
 
 ---
 
-## Resumen de importaciones
+## 17. Tabla de Importaciones — Referencia Rápida
 
-Esta tabla te dice exactamente qué importar según lo que uses:
+### ¿Qué importar en `imports[]` del componente?
 
 | Si usas esto en el template... | Importa esto en `imports[]` |
 |---|---|
@@ -1365,6 +2295,29 @@ Esta tabla te dice exactamente qué importar según lo que uses:
 | `(click)` nativo | **Nada** (es un evento del DOM) |
 | `signal()` / `computed()` | **Nada** (se importan en TypeScript, no en `imports[]`) |
 
+### ¿Qué importar en `providers` de `app.config.ts`?
+
+| Necesitas esto... | Importa esto en `providers` |
+|---|---|
+| Enrutamiento | `provideRouter(routes, ...)` |
+| Peticiones HTTP | `provideHttpClient(...)` |
+| Interceptores funcionales | `withInterceptors([...])` dentro de `provideHttpClient` |
+| View Transitions | `withViewTransitions()` dentro de `provideRouter` |
+| Precargar rutas lazy | `withPreloading(PreloadAllModules)` dentro de `provideRouter` |
+| Animaciones de Angular | `provideAnimations()` |
+
+### ¿De dónde se importan las funciones principales?
+
+| Función | Paquete |
+|---|---|
+| `signal`, `computed`, `inject`, `Component` | `@angular/core` |
+| `toSignal` | `@angular/core` |
+| `provideRouter`, `withViewTransitions`, `Router`, `Routes` | `@angular/router` |
+| `CanActivateFn`, `CanDeactivateFn`, `ResolveFn` | `@angular/router` |
+| `provideHttpClient`, `withInterceptors`, `HttpInterceptorFn` | `@angular/common/http` |
+| `HttpClient`, `HttpRequest`, `HttpHandlerFn` | `@angular/common/http` |
+| `RouterLink`, `RouterModule` | `@angular/router` |
+
 ---
 
-*Documento basado en las prácticas implementadas en el proyecto. Angular 21 — Febrero 2026.*
+*Guía completa de Angular 21 — Febrero 2026.*
