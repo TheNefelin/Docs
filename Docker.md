@@ -91,9 +91,8 @@ docker run --name PostgreSQL -e POSTGRES_PASSWORD=mysecretpassword -p 5432:5432 
 ```
 * New SQL User
 ```sql
-CREATE DATABASE db_testing;
 CREATE USER testing WITH PASSWORD 'testing';
-GRANT ALL PRIVILEGES ON DATABASE db_testing TO testing;
+CREATE DATABASE db_testing OWNER testing;
 ```
 
 # Oracle DB Express
