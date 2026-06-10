@@ -2,13 +2,29 @@
 
 ## MiniMax Gratis
 - [Creat cuenta en OpenRouter](https://openrouter.ai/settings/keys )
-- Crear API Key
-- Copiar API Key
+- Crear API Key y Copiar
 - Abir OpenCode
-- tipear /connect
-- Buscar OpenRouter
-- Pegar la API Key
-- Ctrl + P
-- Switch model
-- MiniMax Free
+```sh
+/connect
+```
+- Buscar OpenRouter y pegar la API Key
+```sh
+/models
+```
+- Seleccionar modelo (MiniMax M3), (GPT-4o mini), (DeepSeek V3.2), (DeepSeek V4 Flash) u otro modelo (free)
 
+### Limpiar sesiones
+```sh
+opencode session list
+```
+```sh
+opencode session delete <id>
+```
+
+### Rutas importantes
+```sh
+ls ~/.config/opencode
+```
+```sh
+ls ~/.local/share/opencode
+```
