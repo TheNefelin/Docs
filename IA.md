@@ -28,3 +28,24 @@ ls ~/.config/opencode
 ```sh
 ls ~/.local/share/opencode
 ```
+
+- opencode.jsonc
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "openrouter": {
+      "models": {
+        "minimax/minimax-m3": {
+          "limit": {
+            "context": 32000,
+            "output": 4000
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+---
