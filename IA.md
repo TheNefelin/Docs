@@ -13,11 +13,13 @@
 ```
 - Seleccionar modelo (MiniMax M3), (GPT-4o mini), (DeepSeek V3.2), (DeepSeek V4 Flash) u otro modelo (free)
 
-### Limpiar sesiones
+### Sesiones
 ```sh
 opencode session list
-```
-```sh
+opencode --continue
+opencode -c
+opencode --session <id>
+opencode -s <id>
 opencode session delete <id>
 ```
 
