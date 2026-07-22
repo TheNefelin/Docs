@@ -16,6 +16,7 @@
 ### Sesiones
 ```sh
 opencode session list
+opencode resume <id>
 opencode --continue
 opencode -c
 opencode --session <id>
