@@ -9,7 +9,7 @@ npm list -g pnpm
 ```sh
 npm install -g pnpm
 npm install -g pnpm@latest
-
+pnpm setup
 pnpm self-update 
 npm uninstall -g pnpm
 ```
