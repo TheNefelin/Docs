@@ -52,3 +52,6 @@ ls ~/.local/share/opencode
 ```
 
 ---
+# NVidia
+[Build Nvidia](https://build.nvidia.com)
+- GetApiKey
