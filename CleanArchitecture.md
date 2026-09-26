@@ -1,6 +1,6 @@
 # Clean Architecture en C#
 
-## Estructura Básica
+## Estructura básica
 
 ```
 └── Proyecto/
@@ -9,7 +9,7 @@
     └── Web/              (Presentation)
 ```
 
-## Ejemplo Domain Layer
+## Ejemplo de la capa de dominio
 
 ```csharp
 // Core/Entities/Product.cs
@@ -24,7 +24,7 @@ public interface IProductRepository {
 }
 ```
 
-## Ejemplo Application Layer
+## Ejemplo de la capa de aplicación
 
 ```csharp
 // Core/Services/ProductService.cs
@@ -41,7 +41,7 @@ public class ProductService {
 }
 ```
 
-## Ejemplo Infrastructure
+## Ejemplo de infraestructura
 
 ```csharp
 // Infrastructure/Repositories/ProductRepository.cs
@@ -52,7 +52,7 @@ public class ProductRepository : IProductRepository {
 }
 ```
 
-## Ejemplo Presentation (Web API)
+## Ejemplo de presentación (Web API)
 
 ```csharp
 // Web/Controllers/ProductsController.cs
@@ -71,15 +71,15 @@ public class ProductsController : ControllerBase {
 }
 ```
 
-## Reglas Clave
+## Reglas clave
 
-- 1. Dependencias: Solo hacia adentro (Web → Infrastructure → Application → Domain)
-- 2. Testing: Domain y Application son testables sin infraestructura
-- 3. Frameworks: Solo en capas externas (Web/Infrastructure)
+- Dependencias: las capas externas dependen de las capas internas. `Web` e `Infrastructure` pueden depender de `Application` y `Domain`, pero `Domain` no debe depender de ellas.
+- Testing: `Domain` y `Application` deben poder probarse sin infraestructura real.
+- Frameworks: deben concentrarse en las capas externas (`Web` e `Infrastructure`).
 
 ---
 
-# Estructura Completa de Clean Architecture
+## Estructura completa de Clean Architecture
 
 ```
 src/
@@ -124,7 +124,7 @@ src/
 
 ## Ejemplo Completo por Capas
 
-### 1. Domain Layer (Core/Domain)
+### 1. Capa de dominio (Core/Domain)
 
 ```csharp
 // Entidad de negocio
@@ -157,7 +157,7 @@ public class Address : ValueObject
 }
 ```
 
-### 2. Application Layer (Core/Application)
+### 2. Capa de aplicación (Core/Application)
 
 ```csharp
 // DTO
@@ -189,7 +189,7 @@ public class GetProductByIdHandler : IRequestHandler<GetProductByIdQuery, Produc
 }
 ```
 
-### 3. Infrastructure Layer
+### 3. Capa de infraestructura
 
 ```csharp
 // Implementación de repositorio
@@ -219,7 +219,7 @@ public class EmailService : IEmailService
 }
 ```
 
-### 4. Presentation Layer (Web)
+### 4. Capa de presentación (Web)
 
 ```csharp
 // Controlador API
@@ -244,4 +244,3 @@ builder.Services
     .AddWeb();           // Capa Web
 ```
 
----

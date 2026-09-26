@@ -1,9 +1,9 @@
 # Docker
 
-[Download Doker](https://docs.docker.com/) <br>
-[Download Doker Images](https://hub.docker.com/)
+[Descargar Docker](https://docs.docker.com/)  
+[Descargar imágenes de Docker](https://hub.docker.com/)
 
-## Some Commands
+## Comandos básicos
 ```cmd
 docker ps
 docker ps -a
@@ -14,23 +14,23 @@ docker container rm <CONTAINER ID>
 docker logs <CONTAINER ID>
 ```
 
-## Hub public Images
-* Download image
-* Create container
-* Start container
-* -e (environment)
-* -p (ServerPort:DockerPort) (8080:80)
+## Imágenes públicas
+- Descargar una imagen.
+- Crear un contenedor.
+- Iniciar un contenedor.
+- `-e`: variables de entorno.
+- `-p`: mapeo de puertos (`PuertoHost:PuertoContenedor`, por ejemplo, `8080:80`).
 ```cmd
 docker pull <IMAGE>
 docker container create -e <ENVIRONMENT> <IMAGE>
 docker container start <CONTAINER ID>
 ```
 
-# SQL Server
-* [download image](https://hub.docker.com/r/microsoft/mssql-server)
-* [download client](https://learn.microsoft.com/en-us/ssms/download-sql-server-management-studio-ssms)
+## SQL Server
+- [Descargar imagen](https://hub.docker.com/r/microsoft/mssql-server)
+- [Descargar cliente](https://learn.microsoft.com/en-us/ssms/download-sql-server-management-studio-ssms)
 ```cmd
-docker pull mcr.microsoft.com/mssql/server 
+docker pull mcr.microsoft.com/mssql/server
 ```
 ```cmd
 docker container create -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=mysecretpassword" -e "MSSQL_PID=Developer" -p 1433:1433 --name SQLServer mcr.microsoft.com/mssql/server
@@ -38,7 +38,7 @@ docker container create -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=mysecretpasswor
 ```cmd
 docker container start <CONTAINER ID>
 ```
-* New SQL User
+- Crear un usuario de SQL Server.
 ```sql
 SELECT 
 	NAME AS LoginName, 
@@ -60,16 +60,16 @@ GO
 EXEC sp_addrolemember 'db_owner', 'testing';
 ```
 
-# MySQL
-* [download image](https://hub.docker.com/_/mysql)
-* [download client](https://www.mysql.com/products/workbench/)
+## MySQL
+- [Descargar imagen](https://hub.docker.com/_/mysql)
+- [Descargar cliente](https://www.mysql.com/products/workbench/)
 ```cmd
 docker pull mysql
 ```
 ```cmd
 docker run --name MySQL -e MYSQL_ROOT_PASSWORD=mysecretpassword -p 3306:3306 -d mysql
 ```
-* New SQL User
+- Crear un usuario de MySQL.
 ```sql
 CREATE DATABASE db_testing;
 USE db_testing;
@@ -80,39 +80,39 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON db_testing.* TO 'testing'@'%';
 GRANT REFERENCES ON db_testing.* TO 'testing'@'%';
 ```
 
-# PostgreSQL
-* [download image](https://hub.docker.com/_/postgres)
-* [download client](https://www.pgadmin.org/download/pgadmin-4-windows/)
+## PostgreSQL
+- [Descargar imagen](https://hub.docker.com/_/postgres)
+- [Descargar cliente](https://www.pgadmin.org/download/pgadmin-4-windows/)
 ```cmd
 docker pull postgres
 ```
 ```cmd
 docker run --name PostgreSQL -e POSTGRES_PASSWORD=mysecretpassword -p 5432:5432 -d postgres
 ```
-* New SQL User
+- Crear un usuario de PostgreSQL.
 ```sql
 CREATE USER testing WITH PASSWORD 'testing';
 CREATE DATABASE db_testing OWNER testing;
 ```
 
-# Oracle DB Express
-* [download image](https://container-registry.oracle.com/ords/f?p=113:4:105333891478907:::4:P4_REPOSITORY,AI_REPOSITORY,AI_REPOSITORY_NAME,P4_REPOSITORY_NAME,P4_EULA_ID,P4_BUSINESS_AREA_ID:803,803,Oracle%20Database%20Express%20Edition,Oracle%20Database%20Express%20Edition,1,0&cs=3nyqRm68Ce-NlRqxB5kV6wtDNVUeH2VcOEFM6hC2yc5gE1tTvG0KYtsuSNrn-BJUHFVeGHKKwJDNY4V7-R-EhBw)
-* [download client](https://www.oracle.com/cl/database/sqldeveloper/)
+## Oracle Database Express
+- [Registro de imágenes de Oracle](https://container-registry.oracle.com/)
+- [Cliente SQL Developer](https://www.oracle.com/cl/database/sqldeveloper/)
 ```cmd
 docker pull container-registry.oracle.com/database/express:latest
 ```
 ```cmd
 docker run --name OracleDB -p 1521:1521 -e ORACLE_PWD=mysecretpassword -d container-registry.oracle.com/database/express:latest
 ```
-* New SQL User
+- Crear un usuario de Oracle.
 ```sql
 ALTER SESSION SET "_ORACLE_SCRIPT"=TRUE;
 CREATE USER testing IDENTIFIED BY testing;
 GRANT ALL PRIVILEGES TO testing;
 ```
 
-# Azurite
-- Azure Emulator
+## Azurite
+- Emulador de Azure.
 ```cmd
 docker run -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite
 ```
@@ -120,10 +120,10 @@ docker run -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-
 docker run --name Azurite-Emulator -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite
 ```
 
-# Docker File
+## Dockerfile
 
-### Java 21 + MySQL + Tomkat 10 + .war
-* Dockerfile
+### Java 21 + MySQL + Tomcat 10 + `.war`
+- `Dockerfile`
 ```dockerfile
 FROM tomcat:10.1-jdk21
 
@@ -135,7 +135,7 @@ EXPOSE 8080
 
 CMD ["catalina.sh", "run"]
 ```
-* docker-compose.yml
+- `docker-compose.yml`
 ```yml
 services:
   mysql:
@@ -162,29 +162,25 @@ services:
       SPRING_DATASOURCE_PASSWORD: testing
 ```
 
-* Build and run
+- Construir y ejecutar.
 ```cmd
 docker compose up --build
 ```
 
 > [!WARNING]  
-> If gets some deploy errors.
+> Si aparecen errores durante el despliegue, revisa los logs del contenedor.
 
-* application.properties 
-* add application.properties
-```
+- `application.properties`:
+```sh
 mvn clean
 mvn install
+```
 
-# Server Configuration
+```properties
+# Configuración del servidor
 server.servlet.context-path=
 server.port=8080
 ```
-
-
-
-<hr>
-<hr>
 
 ## Docker init
 ```cmd
@@ -192,17 +188,17 @@ docker init
 ```
 
 ## Dockerfile
-* Create Dockerfile
-* build (Build image) 
-* -t (Image name)
-* . (Dockerfile route)
-```
+- Crear un archivo `Dockerfile`.
+- `build`: construir la imagen.
+- `-t`: nombre de la imagen.
+- `.`: ruta del `Dockerfile`.
+```cmd
 docker build -t welcome-to-docker .
 ```
 
-## Multiple services in single container
-* Create compose.yaml
-```
+## Varios servicios en un contenedor
+- Crear `compose.yaml`.
+```yaml
 services:
   todo-app:
     ...
@@ -210,17 +206,16 @@ services:
   todo-database:
     ...
 ```
-* Run command to build image from compose
-```
+- Ejecutar el comando para construir la imagen desde Compose.
+```cmd
 docker compose up -d
 ```
-* For host reload on deploy in docker for developing
-```
+- Recargar el host durante el desarrollo con Docker.
+```cmd
 docker compose watch
 ```
-* Persist db on file siste
-* add volumes to compose file
-```
+- Persistir la base de datos en disco agregando volúmenes al archivo Compose.
+```yaml
 services:
   todo-database:
     volumes: 

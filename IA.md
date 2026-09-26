@@ -1,19 +1,19 @@
-# IAs
+# OpenCode
 
-## MiniMax Gratis
-- [Creat cuenta en OpenRouter](https://openrouter.ai/settings/keys )
-- Crear API Key y Copiar
-- Abir OpenCode
+## Usar modelos gratuitos con OpenRouter
+- [Crear una cuenta y obtener una API Key en OpenRouter](https://openrouter.ai/settings/keys)
+- Copiar la API Key.
+- Abrir OpenCode.
 ```sh
 /connect
 ```
-- Buscar OpenRouter y pegar la API Key
+- Buscar OpenRouter y pegar la API Key.
 ```sh
 /models
 ```
-- Seleccionar modelo (MiniMax M3), (GPT-4o mini), (DeepSeek V3.2), (DeepSeek V4 Flash) u otro modelo (free)
+- Seleccionar un modelo gratuito, como MiniMax M3, GPT-4o mini, DeepSeek V3.2 o DeepSeek V4 Flash.
 
-### Sesiones
+## Sesiones
 ```sh
 opencode session list
 opencode resume <id>
@@ -24,7 +24,7 @@ opencode -s <id>
 opencode session delete <id>
 ```
 
-### Rutas importantes
+## Rutas importantes
 ```sh
 ls ~/.config/opencode
 ```
@@ -51,7 +51,6 @@ ls ~/.local/share/opencode
 }
 ```
 
----
-# NVidia
-[Build Nvidia](https://build.nvidia.com)
-- GetApiKey
+## NVIDIA Build
+[NVIDIA Build](https://build.nvidia.com)
+- Obtener una API Key.
