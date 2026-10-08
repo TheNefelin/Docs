@@ -13,15 +13,15 @@ Porque resuelve los problemas que matan a las APIs .NET cuando crecen, con decis
 | Decisión | Problema que resuelve |
 |----------|----------------------|
 | **Clean Architecture por capas** (`Domain` → `Application` → `Infrastructure` → `API`) | Dependencias en una sola dirección; la API no conoce repositorios, los servicios no conocen Dapper. Cambiar de ORM o de BD no toca la capa de aplicación |
-| **Contrato v2: DTO plano + `ProblemDetails`** | Los `2xx` devuelven el DTO sin envoltorio y los errores salen como `ProblemDetails` (RFC 9457) con `traceId`. Un solo patrón de consumo en el cliente, sin duplicar el status HTTP dentro del body |
+| **Envelope uniforme `ApiResponse<T>`** | Toda respuesta (éxito y error) tiene el mismo contrato `{isSuccess, statusCode, message, data, errors}`. El frontend tiene un solo patrón de consumo |
 | **`GlobalExceptionHandler` → 500 genérico + `ProblemDetails`** | El detalle real de la excepción va al log, nunca al cliente. Sin fuga de stack traces ni internos |
 | **Fail-fast de configuración** | Config inválida (connection string faltante, CORS vacío, JWT sin sección) → excepción al arrancar, no fallas en runtime difíciles de diagnosticar |
 | **Connection string por entorno** (`Development` → `SqlServer`, resto → `SqlServerWeb`) | El mismo código corre en local y en producción sin tocar el repositorio; la config correcta la decide el entorno |
 | **JWT identifica + `ApiKey` global** | Separa "quién puede llamar a la API" (ApiKey del origen, validada contra BD) de "quién es el usuario" (JWT) |
 | **Rate limiting por cliente (`X-Forwarded-For` → IP)** | Protección de fuerza bruta que no bloquea a todos los usuarios por igual |
 | **Contraseñas con PBKDF2 (KDF)** | Hash seguro con salt e iteraciones configurables; nunca almacenar texto plano ni MD5/SHA simples |
-| **Dapper + SQL parametrizado (sin SP)** | La lógica de negocio vive en Application y el repositorio solo ejecuta SQL parametrizado: auditable, testeable y sin el acoplamiento de un contrato de SP |
-| **Tests de integración con BD real** | Validan el flujo completo (DTO → SQL → respuesta) contra la base real, no contra mocks que mienten |
+| **Stored Procedures + Dapper** | La lógica de datos vive en la BD (reutilizable, auditable); Dapper es simple y sin magic strings del ORM |
+| **Tests de integración con BD real** | Validan el flujo completo (DTO → SP → respuesta) contra la base real, no contra mocks que mienten |
 | **Sin secretos en el código** | Connection strings, claves JWT y ApiKeys van en configuración/secrets del entorno, nunca hardcodeadas ni en el repo |
 
 ---
@@ -31,8 +31,8 @@ Porque resuelve los problemas que matan a las APIs .NET cuando crecen, con decis
 | Capa | Tecnología | Nota |
 |------|-----------|------|
 | API | ASP.NET Core (net8/net9/net10 según contexto) | Web API con Controllers, no minimal API para CRUD corporativo |
-| ORM | **Dapper** + `Microsoft.Data.SqlClient` | Ligero, explícito, sin tracking |
-| BD | SQL Server (sin SP) | Tablas, índices y seed; la lógica de negocio va en Application |
+| ORM | **Dapper** + `System.Data.SqlClient` | Ligero, explícito, sin tracking |
+| BD | SQL Server + Stored Procedures | Lógica de datos en la BD |
 | Auth | JWT (Microsoft.AspNetCore.Authentication.JwtBearer) + ApiKey propio | Filter/attr |
 | Rate limiting | ASP.NET Core RateLimiter | Fixed window + partition por IP |
 | Logs | ILogger + GlobalExceptionHandler | Sin librería de terceros necesaria |
@@ -47,10 +47,10 @@ Porque resuelve los problemas que matan a las APIs .NET cuando crecen, con decis
 ```
 WebApiCore.sln
 ├── WebApiCore.Domain/          # Modelos, DTOs, entidades (sin dependencias)
-│   └── Models/                 # e.g. User, LoginRequest (DTOs planos, sin envelope)
+│   └── Models/                 # e.g. ApiResponse<T>, User, LoginRequest
 ├── WebApiCore.Application/     # Servicios y lógica de negocio
 │   └── Services/               # e.g. UserService, AuthService
-├── WebApiCore.Infrastructure/  # Acceso a datos (Dapper, context)
+├── WebApiCore.Infrastructure/  # Acceso a datos (Dapper, context, SPs)
 │   ├── Repositories/
 │   ├── Context/                # IDapperContext
 │   └── Mappings/
@@ -72,7 +72,7 @@ Reglas de dependencia (una sola dirección):
 
 ---
 
-## 4. Capa de datos (Dapper + SQL parametrizado)
+## 4. Capa de datos (Dapper + SPs)
 
 ### Contexto (IDapperContext)
 
@@ -104,131 +104,100 @@ public class DapperContext : IDapperContext
 }
 ```
 
-### SQL parametrizado en el repositorio (sin stored procedures)
+### Stored Procedures con contrato de respuesta (SqlResponse)
 
-El proyecto **no usa SP**. El repositorio ejecuta SQL parametrizado con Dapper y devuelve un **enum de resultado** cuando la operación puede fallar por una razón de negocio conocida (por ejemplo, un email duplicado). Los errores que no dependen de la BD (validación, credenciales, sesión) nunca se resuelven en esta capa: los lanza Application.
+Cada SP devuelve un resultado con `IsSuccess`, `StatusCode` y `Message` para que la capa de aplicación sepa si la operación fue exitosa sin adivinar:
+
+```sql
+-- Patrón de SP de escritura
+CREATE PROCEDURE Auth_Login
+    @Email NVARCHAR(100),
+    @PasswordHash NVARCHAR(500),
+    @IsSuccess BIT OUTPUT,
+    @StatusCode INT OUTPUT,
+    @Message NVARCHAR(500) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS (SELECT 1 FROM Auth_Users WHERE Email = @Email)
+    BEGIN
+        SET @IsSuccess = 0; SET @StatusCode = 400;
+        SET @Message = N'Usuario o contraseña incorrecta'; RETURN;
+    END
+    -- validar hash...
+END
+```
+
+### Uso desde repositorio
 
 ```csharp
-public enum UserCreationStatus
+public async Task<LoginResult?> GetUserAsync(string email, string passwordHash)
 {
-    Created,
-    EmailAlreadyExists
+    using var connection = new SqlConnection(_context.ConnectionString);
+    var p = new DynamicParameters();
+    p.Add("@Email", email);
+    p.Add("@PasswordHash", passwordHash);
+    p.Add("@IsSuccess", dbType: DbType.Boolean, direction: ParameterDirection.Output);
+    p.Add("@StatusCode", dbType: DbType.Int32, direction: ParameterDirection.Output);
+    p.Add("@Message", dbType: DbType.String, size: 500, direction: ParameterDirection.Output);
+
+    await connection.ExecuteAsync("Auth_Login", p, commandType: CommandType.StoredProcedure);
+
+    var isSuccess = p.Get<bool>("@IsSuccess");
+    if (!isSuccess)
+        return new LoginResult(false, p.Get<int>("@StatusCode"), p.Get<string>("@Message"));
+
+    // segunda consulta para datos del usuario...
+    return new LoginResult(true, 200, "OK", user);
 }
 ```
 
-```csharp
-public async Task<UserCreationStatus> CreateUserAsync(AuthUser authUser, CancellationToken cancellationToken)
-{
-    var commandDefinition = new CommandDefinition(
-        commandText: @"
-            INSERT INTO Auth_Users
-                (User_Id, Email, HashLogin, SaltLogin, Profile_Id)
-            VALUES
-                (@User_Id, @Email, @HashLogin, @SaltLogin, 2)",
-        parameters: new
-        {
-            authUser.User_Id,
-            authUser.Email,
-            authUser.HashLogin,
-            authUser.SaltLogin
-        },
-        cancellationToken: cancellationToken);
-
-    using var connection = _dapper.CreateConnection();
-
-    try
-    {
-        await connection.ExecuteAsync(commandDefinition);
-        return UserCreationStatus.Created;
-    }
-    catch (SqlException exception) when (exception.Number is 2601 or 2627)
-    {
-        // 2601 = índice único violado, 2627 = restricción UNIQUE
-        return UserCreationStatus.EmailAlreadyExists;
-    }
-}
-```
-
-Y el servicio de Application traduce ese resultado en la excepción que el middleware sabe mapear:
-
-```csharp
-var result = await _authUserRepository.CreateUserAsync(authUser, cancellationToken);
-if (result == UserCreationStatus.EmailAlreadyExists)
-    throw new DuplicateEmailException();
-
-return new AuthUserResponse { User_Id = authUser.User_Id };
-```
-
-**Reglas**:
-- Los repositorios reciben datos ya procesados (por ejemplo, el hash calculado en Application); la capa de datos no aplica lógica de negocio.
-- El repositorio **no lanza excepciones de negocio**: devuelve un enum/valor para los casos esperados y deja que Application decida el contrato HTTP.
-- `SqlException` se filtra por número de error (`when (exception.Number is 2601 or 2627)`), nunca se captura de forma genérica para inventar un error de usuario.
-- Siempre `CommandDefinition` con `cancellationToken`, para que la cancelación viaje hasta SQL.
-- Nunca concatenar valores en el `commandText`: todo por nombre (`@Email`).
+**Regla**: los repositorios reciben datos ya procesados (por ejemplo, el `passwordHash` calculado en Application); la capa de datos no aplica lógica de negocio.
 
 ---
 
-## 5. Contrato uniforme de respuesta (contrato v2)
+## 5. Contrato uniforme de respuesta (Envelope)
 
-**Regla del proyecto: los `2xx` devuelven el DTO plano y los errores salen siempre como `ProblemDetails` (RFC 9457).** No existe ningún envelope propio (`ApiResponse<T>`, `ServiceResult<T>`): el status HTTP ya viaja en el status line, y duplicarlo dentro del body solo crea dos fuentes de verdad que se desincronizan.
+Toda respuesta HTTP pasa por el mismo envelope. Esto estabiliza el contrato con el frontend:
 
-Controladores: sin envoltura, sin `if (!result.IsSuccess)`.
+```csharp
+public class ApiResponse<T>
+{
+    public bool IsSuccess { get; set; }
+    public int StatusCode { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public T? Data { get; set; }
+    public List<string>? Errors { get; set; }
+}
+```
+
+Controladores lo usan siempre, sin excepciones:
 
 ```csharp
 [HttpGet("{id}")]
-public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
+public async Task<IActionResult> GetById(int id)
 {
-    var user = await _userService.GetByIdAsync(id, cancellationToken);
+    var user = await _userService.GetByIdAsync(id);
+    if (user is null)
+        return NotFound(new ApiResponse<object> { IsSuccess = false, StatusCode = 404, Message = "No encontrado" });
 
-    return user is null
-        ? NotFound()
-        : Ok(user);
+    return Ok(new ApiResponse<UserDto> { IsSuccess = true, StatusCode = 200, Message = "OK", Data = user });
 }
 ```
-
-Los errores no se construyen en el controller: la capa de Application lanza una excepción y el `GlobalExceptionHandler` la traduce.
-
-```csharp
-[HttpPost]
-public async Task<IActionResult> Create(UserRequest request, CancellationToken cancellationToken)
-{
-    var response = await _userService.CreateAsync(request, cancellationToken);
-
-    return StatusCode(StatusCodes.Status201Created, response);
-}
-```
-
-### Forma del cuerpo de error
-
-```json
-{
-  "type": null,
-  "title": "Conflicto",
-  "status": 409,
-  "detail": "El correo ya está registrado.",
-  "traceId": "0HN7A1B2C3D4E5F6G7H8"
-}
-```
-
-- `Content-Type: application/problem+json`.
-- `traceId` va siempre en `extensions` (desde `HttpContext.TraceIdentifier`) para correlacionar el error con el log del servidor.
-- El `detail` de un 500 **nunca** es `ex.Message`: es genérico y el detalle real va al log.
 
 ### Tabla de códigos coherente
 
-| Caso | HTTP | Dónde se produce |
-|------|------|------------------|
-| Éxito | 200/201/204 | Controller (`Ok`, `Created`, `NoContent`) |
-| Entrada inválida (modelo) | 400 | `InvalidModelStateResponseFactory` → `ValidationProblemDetails` |
-| Entrada inválida (negocio) | 400 | Excepción de Application (`RequestValidationException`, `CorePasswordAlreadyExistsException`) |
-| No autenticado / sesión inválida | 401 | `InvalidCredentialsException`, `UserSessionInvalidException`, `CorePasswordNotConfiguredException`, `JwtBearerEvents.OnChallenge`, `ApiKeyFilter` |
-| Sin permiso (registro deshabilitado) | 403 | `RegistrationDisabledException` |
-| No existe | 404 | `KeyNotFoundException`, `MapFallback` |
-| Conflicto | 409 | `DuplicateEmailException` |
-| Demasiadas solicitudes | 429 | `TooManyLoginAttemptsException`, `OnRejected` del rate limiter, `ApiKeyFilter` |
-| Error interno | 500 | `GlobalExceptionHandler` (genérico) |
+| Caso | HTTP | Envelope |
+|------|------|----------|
+| Éxito | 200/201 | `IsSuccess=true` |
+| Entrada inválida (modelo/validación) | 400 | `IsSuccess=false`, `Errors` |
+| No autenticado | 401 | `IsSuccess=false` |
+| Sin permiso | 403 | `IsSuccess=false` |
+| No existe | 404 | `IsSuccess=false` |
+| Límite de peticiones excedido | 429 | `IsSuccess=false` |
+| Error interno | 500 | `IsSuccess=false`, mensaje genérico |
 
-**Anti-patrón**: inventar un envelope propio con `isSuccess`/`statusCode`/`data` cuando el status HTTP ya lo dice, o devolver en unos endpoints DTO plano y en otros un `string` de error. El cliente termina con `if (status === 400) ... else if (typeof res === 'string') ...`.
+**Anti-patrón**: devolver en unos endpoints `{data: ...}` directo y en otros un `string` de error o `ProblemDetails` crudo. El frontend termina con `if (status === 400) ... else if (typeof res === 'string') ...`.
 
 ---
 
@@ -236,64 +205,35 @@ public async Task<IActionResult> Create(UserRequest request, CancellationToken c
 
 ### `GlobalExceptionHandler`
 
-Un solo manejador central mapea las **excepciones de Application a su status code** y responde `ProblemDetails`. Las excepciones de negocio se loguean como warning (son rechazos esperados, no fallas); el resto como error. El 500 nunca expone `ex.Message`:
+Un solo manejador central captura excepciones no controladas, las **loguea** y responde 500 genérico:
 
 ```csharp
 public class GlobalExceptionHandler : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext ctx, Exception ex, CancellationToken ct)
     {
-        if (ex is RequestValidationException
-            or RegistrationDisabledException
-            or DuplicateEmailException
-            or TooManyLoginAttemptsException
-            or InvalidCredentialsException
-            or UserSessionInvalidException
-            or CorePasswordAlreadyExistsException
-            or CorePasswordNotConfiguredException)
-            _logger.LogWarning(ex, "Solicitud rechazada.");
-        else
-            _logger.LogError(ex, "Excepción no controlada.");
-
-        var (statusCode, title, message) = ex switch
+        _logger.LogError(ex, "Error no controlado");
+        var response = new ApiResponse<object>
         {
-            RequestValidationException => (StatusCodes.Status400BadRequest, "Solicitud incorrecta", ex.Message),
-            RegistrationDisabledException => (StatusCodes.Status403Forbidden, "Acceso denegado", ex.Message),
-            DuplicateEmailException => (StatusCodes.Status409Conflict, "Conflicto", ex.Message),
-            TooManyLoginAttemptsException => (StatusCodes.Status429TooManyRequests, "Demasiadas solicitudes", ex.Message),
-            InvalidCredentialsException => (StatusCodes.Status401Unauthorized, "No autorizado", ex.Message),
-            _ => (StatusCodes.Status500InternalServerError, "Error", "Ocurrió un error inesperado.")
+            IsSuccess = false,
+            StatusCode = 500,
+            Message = "Ha ocurrido un error interno."
         };
-
-        ctx.Response.StatusCode = statusCode;
-        ctx.Response.ContentType = "application/problem+json";
-
-        var problem = new ProblemDetails { Status = statusCode, Title = title, Detail = message };
-        problem.Extensions["traceId"] = ctx.TraceIdentifier;
-
-        await JsonSerializer.SerializeAsync(
-            ctx.Response.Body,
-            problem,
-            new JsonSerializerOptions(JsonSerializerDefaults.Web),
-            cancellationToken: ct);
-
+        ctx.Response.StatusCode = 500;
+        ctx.Response.ContentType = "application/json";
+        await ctx.Response.WriteAsJsonAsync(response, ct);
         return true;
     }
 }
 ```
 
-Registro (**`AddProblemDetails()` no es opcional**: sin él, `ProblemDetails` no se formatea con el content type correcto):
+Registro:
 
 ```csharp
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddProblemDetails();
 // ...
 app.UseExceptionHandler();
 ```
-
-**Regla**: el mensaje de 500 es genérico para el cliente; el detalle real va al log. Nunca `ex.Message` en una respuesta 500.
-
-**Por qué excepciones y no un resultado con error**: un `ServiceResult` obliga a que cada controller recuerda desenvolver (`if (!result.IsSuccess)`) y ese olvido no rompe el build — falla en runtime. La excepción hace que el camino de éxito sea el único camino posible y que el mapeo a HTTP esté en un solo archivo.
 
 ### Error de modelo (400) uniforme
 
@@ -301,31 +241,22 @@ app.UseExceptionHandler();
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(opts =>
     {
-        opts.InvalidModelStateResponseFactory = context =>
+        opts.InvalidModelStateResponseFactory = ctx =>
         {
-            var problem = new ValidationProblemDetails(
-                context.ModelState
-                    .Where(x => x.Value?.Errors.Count > 0)
-                    .ToDictionary(
-                        x => x.Key,
-                        x => x.Value!.Errors.Select(e => e.ErrorMessage).ToArray()))
+            var errors = ctx.ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            return new BadRequestObjectResult(new ApiResponse<object>
             {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Solicitud incorrecta",
-                Detail = "Validación fallida."
-            };
-
-            problem.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
-
-            return new BadRequestObjectResult(problem)
-            {
-                ContentTypes = { "application/problem+json" }
-            };
+                IsSuccess = false, StatusCode = 400,
+                Message = "Datos de entrada inválidos.", Errors = errors
+            });
         };
     });
 ```
 
-`ValidationProblemDetails` (no `ProblemDetails` plano) para que los errores por campo queden en `errors`, que es lo que el cliente muestra junto al input.
+**Regla**: el mensaje de 500 es genérico para el cliente; el detalle real va al log. Nunca `ex.Message` en una respuesta 500.
 
 ---
 
@@ -367,18 +298,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             OnChallenge = ctx =>
             {
                 ctx.HandleResponse();
-                ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                ctx.Response.ContentType = "application/problem+json";
-                return JsonSerializer.SerializeAsync(
-                    ctx.Response.Body,
-                    new ProblemDetails
-                    {
-                        Status = StatusCodes.Status401Unauthorized,
-                        Title = "No autorizado",
-                        Detail = "No autorizado."
-                    },
-                    new JsonSerializerOptions(JsonSerializerDefaults.Web),
-                    cancellationToken: ctx.HttpContext.RequestAborted);
+                ctx.Response.StatusCode = 401;
+                ctx.Response.ContentType = "application/json";
+                return ctx.Response.WriteAsJsonAsync(new ApiResponse<object>
+                { IsSuccess = false, StatusCode = 401, Message = "No autorizado." });
             }
         };
     });
@@ -391,66 +314,29 @@ El origen (Swagger, Postman, frontend) envía la ApiKey configurada en BD (`Mae_
 ```csharp
 public class ApiKeyFilter : IAsyncActionFilter
 {
-    private const string ApiKeyHeaderName = "ApiKey";
-
-    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    public async Task OnActionExecutionAsync(ActionExecutingContext ctx, ActionExecutionDelegate next)
     {
-        var clientIp = ClientIpResolver.Resolve(context.HttpContext);
-
-        // 1. Lockout primero: una IP quemada no llega ni a comparar la ApiKey
-        if (_lockoutService.IsBlocked(clientIp))
+        if (!ctx.HttpContext.Request.Headers.TryGetValue("X-Api-Key", out var apiKey))
         {
-            var remaining = _lockoutService.GetRemainingBlockTime(clientIp);
-            if (remaining is TimeSpan remainingTime)
-                context.HttpContext.Response.Headers.RetryAfter = ((int)remainingTime.TotalSeconds).ToString();
-
-            context.Result = CreateProblemResult(context.HttpContext, StatusCodes.Status429TooManyRequests, "Demasiadas solicitudes", "Demasiados intentos fallidos de ApiKey. Intenta nuevamente más tarde.");
+            ctx.Result = new UnauthorizedObjectResult(new ApiResponse<object>
+                { IsSuccess = false, StatusCode = 401, Message = "ApiKey requerida." });
             return;
         }
-
-        // 2. Header presente
-        var apiKey = context.HttpContext.Request.Headers[ApiKeyHeaderName].FirstOrDefault();
-
-        if (string.IsNullOrEmpty(apiKey))
+        // comparar contra el valor almacenado en BD (Mae_Config) de forma segura
+        var stored = await _configService.GetAsync("ApiKey");
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(apiKey!),
+                Encoding.UTF8.GetBytes(stored)))
         {
-            _lockoutService.RegisterFailure(clientIp);
-            context.Result = CreateProblemResult(context.HttpContext, StatusCodes.Status401Unauthorized, "No autorizado", "ApiKey es requerida.");
+            ctx.Result = new UnauthorizedObjectResult(/* 401 uniforme */);
             return;
         }
-
-        // 3. Validación en tiempo constante contra el valor de Mae_Config
-        var isValid = await _maeConfigService.ValidateApiKey(apiKey, context.HttpContext.RequestAborted);
-
-        if (!isValid)
-        {
-            _lockoutService.RegisterFailure(clientIp);
-            context.Result = CreateProblemResult(context.HttpContext, StatusCodes.Status401Unauthorized, "No autorizado", "ApiKey no autorizada.");
-            return;
-        }
-
-        _lockoutService.Reset(clientIp);
         await next();
-    }
-
-    private static ObjectResult CreateProblemResult(HttpContext httpContext, int statusCode, string title, string detail)
-    {
-        var problem = new ProblemDetails { Status = statusCode, Title = title, Detail = detail };
-        problem.Extensions["traceId"] = httpContext.TraceIdentifier;
-
-        return new ObjectResult(problem)
-        {
-            StatusCode = statusCode,
-            ContentTypes = { "application/problem+json" }
-        };
     }
 }
 ```
 
-**Reglas**:
-- La ApiKey viaja en header, **nunca en la query string** (queda en logs del servidor y del proxy).
-- La comparación es en **tiempo constante** (`CryptographicOperations.FixedTimeEquals`): comparar con `==` filtra información por temporización.
-- El lockout se aplica **por IP**, no global: una ApiKey robada no debe tumbar a todos los clientes. Se consulta **antes** de validar y se resetea al primer éxito.
-- Cada respuesta del filtro (401 y 429) es `ProblemDetails` con `traceId`, igual que el resto de la API.
+**Regla**: la ApiKey viaja en header, **nunca en la query string** (queda en logs del servidor y del proxy).
 
 ---
 
@@ -627,7 +513,7 @@ protected override void OnAppearing()
 | Componente | Lifetime correcto | Justificación |
 |------------|-------------------|---------------|
 | **Services stateless** (wrappers de APIs de plataforma, sensores, idioma) | Singleton | Sin estado mutable persistente; seguros de compartir |
-| **Services con estado por instancia** (audio de instrumentos, metrónomo) | Transient | Estado aislado por ViewModel/página; evita estado residual entre navegaciones |
+| **Services con estado por instancia** (reproducción de audio, players, temporizadores) | Transient | Estado aislado por ViewModel/página; evita estado residual entre navegaciones |
 | **ViewModels** | Transient | Fresh instance en cada navegación, sin estado residual |
 | **Pages** | Singleton (Shell) | Shell cachea las ShellContent pages |
 | **AppShell** | Singleton | Shell infrastructure |
@@ -641,7 +527,7 @@ builder.Services
     .AddSingleton<IAppInfoService, AppInfoService>()
     .AddSingleton<ILauncherService, LauncherService>()
     // Services con estado por instancia — Transient
-    .AddTransient<IMetronomeService, MetronomeService>()
+    .AddTransient<IAudioPlayerService, AudioPlayerService>()
     // ViewModels — Transient
     .AddTransient<HomeViewModel>()
     .AddTransient<SettingsViewModel>()
@@ -913,11 +799,11 @@ Para estado visual binario (on/off, active/inactive), usar `IValueConverter` con
 
 ### 11.9 Localización multi-idioma (resx)
 
-Patrón validado en el repo (ES/EN/SV):
+Patrón validado en MAUI (ES/EN/SV):
 
-- **Recursos**: `AppResources.resx` (idioma base) + `AppResources.{culture}.resx` (p. ej. `.en`, `.sv`).
-- **Manager**: `LocalizationResourceManager` (singleton) expone un indexer por clave `[Clave]`; al cambiar de idioma notifica para re-enlazar los Bindings.
-- **Markup**: `TranslateExtension` (namespace propio, `IMarkupExtension<BindingBase>`) usado como `{extensions:Translate Clave}`.
+- **Recursos**: un `.resx` base (idioma por defecto) + un `.{culture}.resx` por idioma adicional (p. ej. `.en`, `.sv`), todos con el **mismo nombre base**. La paridad de claves entre idiomas es obligatoria: una clave que existe en el base y no en una traducción cae en fallback silencioso.
+- **Manager**: singleton que expone un indexer por clave `[Clave]` y una propiedad de cultura; al cambiarla notifica (`PropertyChanged`) para re-enlazar los Bindings.
+- **Markup**: una `IMarkupExtension<BindingBase>` en namespace propio que devuelve un `Binding` al indexer del manager, usada como `{ext:Translate Clave}`.
 
 ```csharp
 // Devuelve un Binding enlazado al indexer del manager.
@@ -927,12 +813,12 @@ public BindingBase ProvideValue(IServiceProvider serviceProvider)
     {
         Mode = BindingMode.OneWay,
         Path = $"[{Name}]",
-        Source = LocalizationResourceManager.Instance
+        Source = LocalizationManager.Instance
     };
 }
 ```
 
-**Gotcha verificada**: `TranslateExtension` devuelve un **`Binding`**. Usarlo SOLO en propiedades bindables (`Text`, `Title`, `ToolTip`, ...). En propiedades no enlazables (p. ej. valores estáticos, `Source`, colecciones) no aplica o falla silenciosamente.
+**Gotcha verificada**: la markup extension devuelve un **`Binding`**. Usarla SOLO en propiedades bindables (`Text`, `Title`, `ToolTip`, ...). En propiedades no enlazables (p. ej. valores estáticos, `Source`, colecciones) no aplica o falla silenciosamente.
 
 **Reglas**:
 - Un `View`/`Page` que muestre cadenas debe consumir las claves vía markup; nunca hardcodear textos visibles.
@@ -953,7 +839,7 @@ public BindingBase ProvideValue(IServiceProvider serviceProvider)
 | Caso de uso | Motor recomendado |
 |-------------|-------------------|
 | Música, reproducción larga, notas de instrumento | `MediaElement` |
-| Clics/efectos cortos precisos (metrónomo) | APIs nativas de baja latencia |
+| Clics/efectos cortos y precisos | APIs nativas de baja latencia |
 
 APIs de baja latencia disponibles sin dependencias nuevas:
 
@@ -965,15 +851,15 @@ APIs de baja latencia disponibles sin dependencias nuevas:
 
 ```csharp
 // Core
-public interface IMetronomeClickService
+public interface IShortSoundPlayer
 {
-    void PlayClick(bool accent);
+    void Play(bool accent);
 }
 
 // MAUI (implementación única por TFM con #if)
-public partial class MetronomeClickService : IMetronomeClickService
+public partial class ShortSoundPlayer : IShortSoundPlayer
 {
-    public void PlayClick(bool accent)
+    public void Play(bool accent)
     {
 #if ANDROID
         _soundPool?.Play(accent ? _accentSoundId : _normalSoundId, 1f, 1f, 1, 0, 1f);
@@ -991,7 +877,7 @@ public partial class MetronomeClickService : IMetronomeClickService
 ### 11.12 Reuso y convenciones para biblioteca de componentes
 
 - **Colores/estilos con `AppThemeBinding`** desde el origen: todo recurso visual declara variante claro/oscuro; nunca un color fijo para ambos temas.
-- **Converters centralizados** (`BoolToColorConverter`, `BoolToLocalizedStringConverter`, `InvertedBoolConverter`): estado visual binario por binding, no por DataTriggers (§11.8).
+- **Converters centralizados**: todo converter vive en un único lugar y se reutiliza; el estado visual binario se resuelve por binding, no por DataTriggers (§11.8). Antes de escribir uno nuevo, verificar si ya existe uno equivalente.
 - **Componentes autocontenidos** (1 control = 1 archivo + partial class si requiere código) con inyección por `BindableProperty` (§11.5), nunca Service Locator.
 - Si hay 3+ apps MAUI que comparten estilos/converters/localización/servicios wrapper, extraerlos a una **librería compartida** (`Toolkit.Core` maUI-free + `Toolkit.Maui`) consumida por referencia de proyecto; recién evaluar NuGet cuando la distribución lo justifique.
 
@@ -1033,27 +919,26 @@ public static int GetBatteryLevel(Android.Content.Context ctx) =>
 - **Contrato**: el keystore del APK de prueba debe ser el **mismo** que el del AAB final (si no, Play rechaza la actualización).
 - Play **no acepta APK**: se sube un **AAB** firmado (Release con `AndroidPackageFormat` aab por defecto; APK de prueba con `-p:AndroidPackageFormat=apk`). Activar **Play App Signing**: el keystore propio es solo la *upload key*; Google firma los APK finales.
 
-**Licencias de componentes comerciales (ej. Syncfusion)**:
-- La clave se **inyecta en build como `AssemblyMetadata`** (csproj `-p:SyncfusionLicenseKey=...` o variable de entorno de la máquina `SYNC_FUSION_LICENSE_KEY`) y se lee por reflexión en `MauiProgram.cs` solo si trae valor. **Nunca hardcodear ni versionar la clave**. Separar de la CI/CD cuando corresponda.
-- Diferenciar **Trial** (30 días, genera aviso en runtime) de la **Community License** gratuita definitiva (sin expirar si se cumplen condiciones: <US$1M ingresos, ≤5 desarrolladores, ≤10 empleados). Verificar el tipo en el panel de cuentas de Syncfusion; no publicar en producción con clave trial.
+**Licencias de componentes comerciales**:
+- La clave se **inyecta en build como `AssemblyMetadata`** (propiedad de MSBuild pasada por línea de comandos o variable de entorno de la máquina) y se lee por reflexión en `MauiProgram.cs` solo si trae valor. **Nunca hardcodear ni versionar la clave**. Separar de la CI/CD cuando corresponda.
+- Diferenciar **Trial** (con expiración y aviso en runtime) de la **licencia gratuita definitiva** (sin expirar, sujeta a los límites de ingresos y tamaño de equipo que declare el proveedor). Verificar el tipo en el panel de cuentas del proveedor; no publicar en producción con clave trial.
 
 ---
 
 ## 12. Tests
 
 - **xUnit + `WebApplicationFactory<T>`** para tests de integración de la API.
-- Probar **contra BD real** (o instancia de prueba) para validar DTO → SQL → respuesta completa.
-- Verificar el contrato: en `2xx`, el DTO plano sin envoltura; en error, `ProblemDetails` con `status`/`title`/`detail`/`traceId` y `Content-Type: application/problem+json` para 400, 401, 403, 404, 409, 429 y 500.
-- Los servicios se testean por **excepción esperada** (`await Assert.ThrowsAsync<InvalidCredentialsException>(...)`) cuando el camino de error es una excepción de Application; por enum/valor devuelto cuando el caso es del repositorio.
+- Probar **contra BD real** (o instancia de prueba) para validar DTO → SP → respuesta completa.
+- Verificar el **envelope**: `IsSuccess`, `StatusCode`, `Message` correctos para éxito, 400, 401, 404, 429 y 500.
 - No mockear repositorios para probar la API: el valor está en el flujo real.
-- Comando: `dotnet test` (no ejecutar sin autorización del usuario según las reglas del repo).
+- Comando: `dotnet run --project NavajaSuiza.Test/NavajaSuiza.Test.csproj` (no ejecutar sin autorización del usuario según las reglas del repo). La suite usa xUnit.net v3 con runner in-process; `dotnet test` no es compatible con el SDK de .NET 10.
 
 ---
 
 ## 13. Checklist final
 
 - [ ] Estructura Clean Architecture con dependencias en una sola dirección.
-- [ ] Contrato v2 I/O: **2xx → DTO plano** (sin envelope) y **errores → `ProblemDetails`** RFC 9457 (`application/problem+json`) con `traceId` en `extensions`.
+- [ ] Envelope `ApiResponse<T>` en **todas** las respuestas (éxito y error).
 - [ ] `GlobalExceptionHandler` central: log + 500 genérico, sin fuga de internos.
 - [ ] 400 uniforme vía `InvalidModelStateResponseFactory`.
 - [ ] Contraseñas con PBKDF2 + salt + iteraciones configurables.
@@ -1065,7 +950,7 @@ public static int GetBatteryLevel(Android.Content.Context ctx) =>
 - [ ] No secretos hardcodeados ni en el repo.
 - [ ] Swagger con ruta absoluta y versión de Swashbuckle compatible con OpenApi (6.x/9.x vs 10.x).
 - [ ] `dotnet build` sin errores ni warnings.
-- [ ] Tests de integración cubriendo los status y la forma de `ProblemDetails` (incluido `traceId`).
+- [ ] Tests de integración cubriendo los códigos del envelope.
 - [ ] Verificación real en runtime (navegador/Swagger) tras el deploy; no basta que compile.
 - [ ] Documentar decisiones relevantes en `DEVELOPMENT.md` del proyecto.
 - [ ] MAUI: ViewModels Transientes, Pages Singleton, VM resuelto en `OnNavigatedTo` o constructor DI con state service.
@@ -1090,9 +975,7 @@ public static int GetBatteryLevel(Android.Content.Context ctx) =>
 | Anti-patrón | Solución |
 |-------------|----------|
 | Todo en un solo proyecto API | Clean Architecture por capas |
-| Respuestas HTTP inconsistentes | `ProblemDetails` RFC 9457 (`application/problem+json` + `traceId`) |
-| Envelope propio (`ApiResponse`/`ServiceResult`) con `isSuccess`/`statusCode` duplicados | Contrato v2: DTO plano en `2xx` + `ProblemDetails` en error |
-| Servicio que devuelve `ServiceResult` y el controller que "//" olvida desenvolver | Excepciones de Application + un único `GlobalExceptionHandler` |
+| Respuestas HTTP inconsistentes | Envelope único `ApiResponse<T>` |
 | `ex.Message` al cliente en 500 | Log + mensaje genérico |
 | Config inválida detectada en runtime | Fail-fast al arrancar |
 | Secretos en el código/repo | Config/secrets del entorno |
@@ -1109,7 +992,7 @@ public static int GetBatteryLevel(Android.Content.Context ctx) =>
 
 ## 15. Referencias del patrón validado
 
-- **Repo de referencia**: `WebApiCore` (Clean Architecture + Dapper + JWT + ApiKey + rate limit + contrato v2 DTO plano/`ProblemDetails`) — deployado y operativo.
+- **Repo de referencia**: `WebApiCore` (Clean Architecture + Dapper + JWT + ApiKey + rate limit + envelope) — deployado y operativo.
 - **Migration .NET 10**: `PasswordManager_.NET10` — port del mismo patrón con OpenApi 2.x (Swashbuckle 10.x).
 - **Config de despliegue**: connection string de producción por entorno, fail-fast, CORS por allow-list.
 - **Documentación**: ver `DEVELOPMENT.md` del proyecto para decisiones de diseño y alternativas descartadas.
