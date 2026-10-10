@@ -923,6 +923,76 @@ public static int GetBatteryLevel(Android.Content.Context ctx) =>
 - La clave se **inyecta en build como `AssemblyMetadata`** (propiedad de MSBuild pasada por línea de comandos o variable de entorno de la máquina) y se lee por reflexión en `MauiProgram.cs` solo si trae valor. **Nunca hardcodear ni versionar la clave**. Separar de la CI/CD cuando corresponda.
 - Diferenciar **Trial** (con expiración y aviso en runtime) de la **licencia gratuita definitiva** (sin expirar, sujeta a los límites de ingresos y tamaño de equipo que declare el proveedor). Verificar el tipo en el panel de cuentas del proveedor; no publicar en producción con clave trial.
 
+### 11.16 Android edge-to-edge (API 35+): barras del sistema
+
+Con `targetSdk` 35+, Android 15+ fuerza edge-to-edge y el sistema **ignora** `Window.SetStatusBarColor`/`SetNavigationBarColor` (obsoletas desde API 35; el compilador lo advierte con CA1422). Decisión del proyecto: **optar por NO aplicar edge-to-edge**, manteniendo barras opacas `#243042` consistentes en todos los Android (incluidos 15/16). Reglas validadas:
+
+- En el tema MAUI (`Platforms/Android/Resources/values/styles.xml`), el tema `Maui.MainTheme` (parent `Maui.MainTheme.Base`). El color de ambas barras se define **en el tema, no en runtime**:
+
+```xml
+<style name="Maui.MainTheme" parent="Maui.MainTheme.Base">
+    <item name="android:statusBarColor">#243042</item>
+    <item name="android:windowLightStatusBar">false</item>
+    <item name="android:navigationBarColor">#243042</item>
+    <item name="android:windowLightNavigationBar">false</item>
+    <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+</style>
+```
+
+- Con el opt-out activo, la app queda en modo legacy y **el tema aplica los colores en todas las versiones** (incluidas Android 15/16).
+- **No usar `Window.SetStatusBarColor`/`SetNavigationBarColor` en runtime**: además de deprecadas desde API 35, Google Play avisa "la app usa APIs o parámetros obsoletos para la pantalla de borde a borde"; definir el color en el tema no dispara ese aviso y evita el `#pragma` CA1422.
+
+- El style `MauiAppBarLayout` (parent `ThemeOverlay.AppCompat.Dark.ActionBar`, `android:background` `#243042`) se **mantiene**: es el toolbar superior de MAUI, no la franja del edge-to-edge.
+- **Gotcha**: una línea `<AndroidResource Remove="..."/>` en el `.csproj` excluye el recurso del build **sin error**; verificar siempre el recurso compilado en `obj/.../res/values/*.xml`.
+- **Diálogos `DatePicker`/`TimePicker`**: los botones OK/Cancel se pintan con `colorAccent`, y cambiarlo colorea todos los controles de la app. Alternativa mínima: handler de MAUI que pise `CreateDatePickerDialog`/`CreateTimePickerDialog` y pinte en `ShowEvent` (los botones no existen antes del `Show()`):
+
+```csharp
+dialog.ShowEvent += (_, _) =>
+{
+    dialog.GetButton((int)DialogButtonType.Positive)?.SetTextColor(AndroidColor.ParseColor("#FF990A"));
+    dialog.GetButton((int)DialogButtonType.Negative)?.SetTextColor(AndroidColor.ParseColor("#FF990A"));
+};
+```
+
+  Registrar con `ConfigureMauiHandlers`/`AddHandler` bajo `#if ANDROID` cuando el csproj es multi-target.
+- **Gotchas de compilación**: `Microsoft.Maui.Hosting` ya es global using (no declararlo); para `Android.Graphics.Color` usar alias en archivos bajo `Platforms/Android` (ambigüedad con `Microsoft.Maui.Graphics.Color` y namespace `.Android.` resuelto como relativo).
+- **Verificar en dispositivo real**: el edge-to-edge solo aplica en Android 15+; un emulador de versión menor no reproduce el síntoma.
+
+---
+
+### 11.17 Recordatorios programados (notas y listas de tareas)
+
+Implementación propia por plataforma, sin NuGet: `IReminderScheduler` en Core (recibe `ReminderKind` + `Id` de la entidad) y `ReminderScheduler` en MAUI con `#if ANDROID` (`AlarmManager.SetAndAllowWhileIdle` + receiver + `NotificationChannel`) / `#elif IOS || MACCATALYST` (`UNUserNotificationCenter`) / no-op en Windows. Reglas validadas:
+
+- **Gotcha de scope de IDs (crítico)**: las tablas autoincrement independientes comparten valores de `Id` (la nota Id=3 y la lista Id=3). El `PendingIntent` de Android compara `requestCode` y **ignora los extras**, y iOS usa el `identifier` → sin scope, un recordatorio pisa al otro. Mapear siempre por tipo:
+
+```csharp
+static int ToNotificationId(ReminderKind kind, int id) => ((int)kind << 24) | (id & 0x00FFFFFF);
+static string ToNotificationKey(ReminderKind kind, int id) => $"{kind}:{id}";   // iOS identifier
+```
+
+  El receiver recibe el id ya scopeado en el extra (el action+extras no distinguen suficientemente a los PendingIntents).
+- **Disparo único e inexacto**: `SetAndAllowWhileIdle` sin `SCHEDULE_EXACT_ALARM`; permiso `POST_NOTIFICATIONS` (API 33+) solicitado antes de agendar y **bloquear el guardado** si se niega, en vez de fallar en silencio.
+- **Ciclo de vida**: cancelar explícitamente al borrar la entidad; persistir `ReminderAt` en la entidad para restaurar la UI. sqlite-net agrega la columna con `ALTER TABLE ADD COLUMN` al abrir bases existentes (verificar con una base preexistente).
+- **Diferencias platform**: Android convierte hora local a UTC y **pierde las alarmas al reiniciar** (sin `BOOT_COMPLETED`); iOS conserva las pendientes entre reinicios. Tocar la notificación abre la app (sin deep link) salvo que se implemente uno aparte.
+
+### 11.18 Publicación y métrica DEX de Google Play (ofuscación/R8)
+
+Google Play anunció (ago-2026) un requisito de calidad técnica: las apps deben lograr **≥25% de optimización, ofuscación y shrinking del código DEX** ("DEX code optimisation"). Puntos validados para .NET MAUI:
+
+- **Plazo**: es un requisito *upcoming*; la aplicación del umbral comienza en **febrero 2027**. Hasta entonces es una advertencia informativa en Play Console que **no bloquea** subidas ni revisión de producción (la pista de internal testing la muestra igual; no indica un defecto de la app).
+- **Cuándo aplica**: solo a apps con **≥10 MB de DEX sin comprimir**. Verificarlo en el bundle: `unzip -l app.aab | grep -E '\.dex$'` y sumar el tamaño *uncompressed* de `classes*.dex`. En esta app ~21 MB → la métrica aplica.
+- **No corregible desde el proyecto**: .NET for Android fija R8 con `-dontobfuscate` incondicional, así que la ofuscación queda en 0% por diseño. No hay propiedad de MSBuild ni configuración de ProGuard que la suba, y no aporta "emparcharla" de otra forma. Es un límite del toolchain (issue `dotnet/android#12535`); .NET 11/CoreCLR tampoco lo resuelve por sí solo.
+- **Acción correcta**: ignorar la advertencia hasta la fecha de enforcement, documentarla como limitación conocida (§11.18) y vigilar el issue de Microsoft. Si en el futuro se habilita la ofuscación, medir DEX antes/después y decidir ahí.
+- **No confundir** con otras métricas de app quality sí accionables y exigibles hoy: targetSdk 36, soporte 64-bit y alineación a 16 KB pages.
+
+### 11.19 Publicación: minSdkVersion ≥ 24 (protección automática de Play)
+
+- Google Play rechaza la subida si el manifest declara `minSdkVersion < 24`, con el error: "La protección automática de Play requiere una versión mínima del SDK de 24 o una versión posterior".
+- En .NET MAUI se controla con **`SupportedOSPlatformVersion`** (solo para la plataforma android; no toca iOS/MacCatalyst/Windows). Con `21.0` el manifest sale `android:minSdkVersion="21"` y Play lo bloquea.
+- Verificar en el manifest generado (`obj/.../AndroidManifest.xml`): `android:minSdkVersion="24"`.
+- Sin pérdida real de dispositivos: API 24 = Android 7.0. No confundir con `targetSdkVersion` (requisito distinto; aquí ya es 36).
+
 ---
 
 ## 12. Tests
@@ -967,6 +1037,10 @@ public static int GetBatteryLevel(Android.Content.Context ctx) =>
 - [ ] MAUI: Colores y estilos con `AppThemeBinding` (claro/oscuro desde el origen).
 - [ ] MAUI: Permisos Android mínimos; usar APIs de plataforma sin permisos protegidos (batería con `BatteryManager`/`BatteryProperty`, no con `Battery.Default` + `BATTERY_STATS`); revisar el manifest fusionado.
 - [ ] MAUI: Empaquetado Android con `RuntimeIdentifiers` (`AndroidSupportedAbis` obsoleta en .NET 10); validar ABI en dispositivo real con `ro.product.cpu.abi` (cuidado con 32-bit).
+- [ ] MAUI: Barras del sistema en Android resueltas con opt-out de edge-to-edge (`windowOptOutEdgeToEdgeEnforcement` en `Maui.MainTheme`) + color de barras `#243042` definido en el tema (`statusBarColor`/`navigationBarColor`), sin llamadas runtime (evita el aviso de Play de APIs obsoletas); botones de diálogos de fecha/hora vía handler, sin tocar `colorAccent` (§11.16).
+- [ ] MAUI: Recordatorios programados con IDs scopeados por tipo de entidad en requestCode/id de notificación (`(kind << 24) | id`), cancelación al borrar y permiso `POST_NOTIFICATIONS` antes de agendar (§11.17).
+- [ ] Publicación: advertencia de ofuscación/DEX de Play **no corregible** en .NET MAUI (límite del toolchain); ignorar hasta feb-2027 y verificar el resto de métricas accionables (targetSdk, 64-bit, 16 KB pages) (§11.18).
+- [ ] Publicación: Play Protect exige `minSdkVersion ≥ 24`; se controla con `SupportedOSPlatformVersion` (solo android), no con targetSdk (§11.19).
 
 ---
 
