@@ -11,7 +11,6 @@
 - [CSS](CSS.md)
 - [Docker](Docker.md)
 - [ERP](ERP.md)
-- [GitHub Actions CI/CD](SKILL_GITHUB_ACTIONS.md)
 - [Inteligencia artificial](IA.md)
 - [Guía de entrevista](Interview.md)
 - [Linode](Linode.md)
