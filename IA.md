@@ -1,56 +1,56 @@
-# OpenCode
+# Herramientas de IA gratuitas
 
-## Usar modelos gratuitos con OpenRouter
-- [Crear una cuenta y obtener una API Key en OpenRouter](https://openrouter.ai/settings/keys)
-- Copiar la API Key.
-- Abrir OpenCode.
-```sh
-/connect
-```
-- Buscar OpenRouter y pegar la API Key.
-```sh
-/models
-```
-- Seleccionar un modelo gratuito, como MiniMax M3, GPT-4o mini, DeepSeek V3.2 o DeepSeek V4 Flash.
+## Agentes
 
-## Sesiones
+### OpenCode
+- **URL**: https://opencode.ai
+- **Login**: NO (solo requiere API key de un proveedor)
+- **Instalación**
 ```sh
-opencode session list
-opencode resume <id>
-opencode --continue
-opencode -c
-opencode --session <id>
-opencode -s <id>
-opencode session delete <id>
+pnpm add -g opencode-ai
+```
+- **Sesiones**
+```sh
+opencode session list       # Listar sesiones
+opencode resume <id>        # Abrir sesión específica
+opencode session delete <id> # Eliminar sesión específica
 ```
 
-## Rutas importantes
+### Cline
+- **URL**: https://cline.bot
+- **Login**: SI (requiere `cline auth`)
+- **Instalación**
 ```sh
-ls ~/.config/opencode
+pnpm add -g cline
 ```
+- **Sesiones**
 ```sh
-ls ~/.local/share/opencode
+cline history               # Listar sesiones
+cline --id <session-id>     # Abrir sesión específica
+```
+> Nota: Cline no expone un comando CLI documentado para eliminar sesiones. Los datos se almacenan en `~/.cline/data/sessions/`.
+
+### Kilo
+- **URL**: https://kilo.ai
+- **Login**: NO (usa `/connect` dentro de la TUI para proveedores)
+- **Instalación**
+```sh
+pnpm add -g @kilocode/cli
+```
+- **Sesiones**
+```sh
+kilo session list           # Listar sesiones
+kilo --continue             # Abrir última sesión
+kilo session delete <id>    # Eliminar sesión específica
 ```
 
-- opencode.jsonc
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "openrouter": {
-      "models": {
-        "minimax/minimax-m3": {
-          "limit": {
-            "context": 32000,
-            "output": 4000
-          }
-        }
-      }
-    }
-  }
-}
-```
+## Proveedores gratuitos
 
-## NVIDIA Build
-[NVIDIA Build](https://build.nvidia.com)
-- Obtener una API Key.
+### NVIDIA
+- **URL**: https://build.nvidia.com
+- Modelos gratuitos con límites: Nemotron 3 Ultra, Nemotron 3.5 Super VL, Nemotron 3 Nano Omni.
+
+### OpenRouter
+- **URL**: https://openrouter.ai
+- Modelos gratuitos: Laguna S 2.1, Flint, Xing4.0 29B A4B, Nemotron 3 Ultra, entre otros.
+- [Colección de modelos gratuitos](https://openrouter.ai/collections/free-models)
