@@ -10,6 +10,15 @@ Repositorio de documentación técnica en Markdown. No es un proyecto de aplicac
 - Git + GitHub (versionado)
 - pnpm (solo mencionado en la guía `pnpm.md`; no se usa para instalar nada en este repo)
 
+## Archivos de gobernanza
+
+| Archivo | Propósito |
+|---------|-----------|
+| `AGENTS.md` | Reglas de operación del asistente (Cline) en este repositorio. |
+| `DEVELOPMENT.md` | Mapa del proyecto: área → archivo → cuándo editar. |
+| `SKILL.md` | Pautas para crear y mejorar documentación en Markdown. |
+| `pnpm.md` | Guía de instalación y actualización de pnpm en Windows. |
+
 ## Mapa: área → archivo → cuándo tocarlo
 
 | Área | Archivo | Cuándo editar |

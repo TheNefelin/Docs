@@ -1,5 +1,7 @@
 # Documentación de ayuda
 
+## Guías técnicas
+
 - [.NET Entity Framework y PostgreSQL](.NET_EntityPgSql.md)
 - [.NET: algoritmos](.NET_AlgorithmsProficiencyTest.md)
 - [.NET: backend](.NET_BackendCodingChallenge.md)
@@ -23,3 +25,9 @@
 - [SQL Server](SqlServer.md)
 - [Video](Video.md)
 - [Windows](Windows.md)
+
+## Gobernanza del proyecto
+
+- [AGENTS.md](AGENTS.md) — Reglas de operación para el asistente (Cline) en este repositorio.
+- [DEVELOPMENT.md](DEVELOPMENT.md) — Mapa del proyecto: área → archivo → cuándo editar.
+- [SKILL.md](SKILL.md) — Pautas para crear y mejorar documentación en Markdown.

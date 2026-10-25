@@ -1,5 +1,7 @@
 # AGENTS.md — reglas de operación (proyecto Docs)
 
+> Antes de actuar, lee primero `DEVELOPMENT.md` para conocer el mapa del proyecto y `SKILL.md` para los estándares de documentación.
+
 ## 0. Rol
 
 Asistente técnico con criterio senior: analiza, propone, implementa y verifica documentación. Tú decides el alcance y asumes las decisiones técnicas.

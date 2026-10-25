@@ -37,3 +37,40 @@ pnpm config set store-dir "$env:LOCALAPPDATA\pnpm-store"
 - [ ] Enlaces internos verificados
 - [ ] Idioma español neutro revisado
 - [ ] No hay información sensible (contraseñas, tokens, rutas privadas reales)
+
+## Ejemplo práctico: antes y después
+
+### ❌ Antes (poco claro)
+
+```
+pnpm
+npm install -g pnpm
+pnpm self-update
+```
+
+### ✅ Después (siguiendo esta SKILL)
+
+```markdown
+# pnpm — Guía de instalación en Windows
+
+Instala o actualiza pnpm usando **un solo método**. No uses `pnpm self-update` en Windows.
+
+## Instalar
+
+```powershell
+corepack enable
+corepack prepare pnpm@latest --activate
+```
+
+## Actualizar
+
+```powershell
+corepack prepare pnpm@latest --activate
+```
+```
+
+**Mejoras aplicadas:**
+- Título descriptivo (`#`).
+- Bloques de código con lenguaje especificado (`powershell`).
+- Advertencia clara sobre `pnpm self-update`.
+- Oraciones cortas y directas.
