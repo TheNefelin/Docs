@@ -87,6 +87,34 @@ pnpm add -D @angular/cli
 pnpm ng serve
 ```
 
+### Actualizar paquetes de una app Angular existente
+
+Para actualizar dependencias generales del proyecto (no específicas de Angular):
+
+```powershell
+# Ver qué paquetes tienen actualizaciones disponibles
+pnpm update --interactive
+
+# Actualizar todas las dependencias según los rangos de package.json
+pnpm update
+```
+
+Para actualizar Angular en sí (core, CLI y librerías de Angular), usa `ng update`. Este comando ejecuta las migraciones automáticas que correspondan:
+
+```powershell
+# Si Angular CLI está instalado como dependencia de desarrollo del proyecto
+pnpm ng update @angular/core @angular/cli
+
+# Con una versión objetivo específica (ejemplo Angular 19)
+pnpm ng update @angular/core@19 @angular/cli@19
+
+# Si no tienes Angular CLI instalado localmente
+pnpm dlx @angular/cli update @angular/core @angular/cli
+```
+
+> **Importante:** `pnpm update` no ejecuta las migraciones de Angular. Para subir la versión de Angular, usa siempre `ng update` y revisa primero [update.angular.io](https://update.angular.io).
+
+
 ## Variable de entorno importante
 
 - `PNPM_HOME`: se usa con el script oficial y Winget (normalmente `C:\Users\<tu-usuario>\AppData\Local\pnpm`). Con Corepack no es obligatorio.
