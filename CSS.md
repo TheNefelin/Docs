@@ -50,3 +50,15 @@ section {
 ```
 
 ## Header - Main - Footer (tailwindcss)
+
+```html
+<section class="grid min-h-dvh grid-rows-[auto_1fr_auto]">
+  <app-navbar-component/>
+
+  <div>
+    <router-outlet/>
+  </div>
+  
+  <app-footer-component  />
+</section>
+```
